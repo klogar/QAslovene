@@ -1,14 +1,14 @@
 import json
 import jsonlines
 
-def get_statistics(datasets, kinds):
+def get_statistics(dir, datasets, kinds):
     for dataset in datasets:
         for kind in kinds:
-            with open("HT/" + dataset + "/" + kind + ".jsonl", encoding="utf-8") as f:
+            with open(f"{dir}/HT/{dataset}/{kind}.jsonl", encoding="utf-8") as f:
                 ht_lines = len(f.readlines())
-            with open("MT/" + dataset + "/" + kind + ".jsonl", encoding="utf-8") as f:
+            with open(f"{dir}/MT/{dataset}/{kind}.jsonl", encoding="utf-8") as f:
                 mt_lines = len(f.readlines())
-            with open("ALL/" + dataset + "/" + kind + ".jsonl", encoding="utf-8") as f:
+            with open(f"{dir}/ALL/{dataset}/{kind}.jsonl", encoding="utf-8") as f:
                 all_lines = len(f.readlines())
             print(f"{dataset} {kind} human translated {ht_lines}, machine translated {mt_lines}, all {all_lines}")
 
@@ -22,7 +22,8 @@ def merge(datasets, kinds):
     for dataset in datasets:
         for kind in kinds:
             data_ht = []
-            with jsonlines.open("HT/" + dataset + "/" + kind + ".jsonl") as reader:
+            dataset_name = dataset if dataset != "test" else "test_answered"
+            with jsonlines.open("HT/" + dataset_name + "/" + kind + ".jsonl") as reader:
                 for line in reader:
                     data_ht.append(line)
             data_mt = []
@@ -36,9 +37,18 @@ def merge(datasets, kinds):
                 for line in data:
                     writer.write(line)
 
+def load_multirc_fixedids(dir):
+
+    with open(f"{dir}/MT/testprep/test2.json") as f:
+        data = json.load(f)["data"]
+        print()
+
 
 # dir = "C:/Users/Katja/Documents/FRI/Magistrska/Datasets"
 datasets = ["BoolQ", "COPA", "MultiRC"]
 kinds = ["train", "val", "test"]
-get_statistics(datasets, kinds)
+dir = "../../../Magistrska/Datasets"
+get_statistics(dir, datasets, kinds)
 # merge(datasets, kinds)
+
+# load_multirc_fixedids(dir)

@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+datasets/encoded
+datasets/train.csv
+datasets/val.csv
