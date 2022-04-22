@@ -2,6 +2,9 @@ import json
 import jsonlines
 import csv
 import re
+from os import listdir
+from os.path import isfile, join
+from collections import defaultdict
 
 fieldnames = ["input", "output"]
 kinds = ["train", "val", "test"]
@@ -23,7 +26,10 @@ def boolq(dir_in, dir_out):
                 writer.write(line_out)
 
 def boolq_csv(dir_in, dir_out):
-    for kind in kinds:
+    d = f"{dir_in}/BoolQ"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    for file in onlyfiles:
+        kind = file.split(".")[0]
         f = open(f"{dir_out}/BoolQ/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -62,7 +68,10 @@ def multirc(dir_in, dir_out):
                     writer.write(line_out)
 
 def multirc_csv(dir_in, dir_out):
-    for kind in kinds:
+    d = f"{dir_in}/MultiRC"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    for file in onlyfiles:
+        kind = file.split(".")[0]
         f = open(f"{dir_out}/MultiRC/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -79,10 +88,12 @@ def multirc_csv(dir_in, dir_out):
                         for a in q["answers"]:
                             if a["label"] == 1:
                                 line_out["output"] = a["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
+
                                 # if '"' in line_out["output"]:
                                 #     print(line_out["output"])
 
                                 writer.writerow(line_out)
+                                break
                     else:
                         writer.writerow(line_out)
                     # if '"' in line_out["input"]:
@@ -97,7 +108,10 @@ def remove_repeating_words(str):
     return str
 
 def mctest_csv(dir_in, dir_out):
-    for kind in kinds:
+    d = f"{dir_in}/MCTest"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    for file in onlyfiles:
+        kind = file.split(".")[0]
         f = open(f"{dir_out}/MCTest/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -113,6 +127,8 @@ def mctest_csv(dir_in, dir_out):
                     ans = ans[:-1] if ans.endswith(".") else ans #remove dot
                     ans = ans.replace("(angleščina)", "").replace("..", "")
                     ans = remove_repeating_words(ans)
+                    if ans.startswith("- "):
+                        ans = ans[2:]
                     input += f" ({letter}) {ans}"
                 input += " \n " + paragraph
                 output = remove_repeating_words(line[-1])
@@ -123,7 +139,10 @@ def mctest_csv(dir_in, dir_out):
                 writer.writerow(line_out)
 
 def squad2_csv(dir_in, dir_out):
-    for kind in kinds:
+    d = f"{dir_in}/SQUAD2"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    for file in onlyfiles:
+        kind = file.split(".")[0]
         f = open(f"{dir_out}/SQUAD2/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -136,6 +155,8 @@ def squad2_csv(dir_in, dir_out):
                 if '?' not in question:
                     question = question + "?"
                 answer = remove_repeating_words(line[2]).replace("(angleščina)", "").replace("..", "")
+                if answer.startswith("- "):
+                    answer = answer[2:]
 
                 line_out = dict()
                 line_out["input"] = question + " \n " + paragraph
@@ -143,7 +164,10 @@ def squad2_csv(dir_in, dir_out):
                 writer.writerow(line_out)
 
 def copa_csv(dir_in, dir_out):
-    for kind in kinds:
+    d = f"{dir_in}/COPA"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    for file in onlyfiles:
+        kind = file.split(".")[0]
         f = open(f"{dir_out}/COPA/{kind}.csv", mode="w", encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -172,18 +196,21 @@ def copa_csv(dir_in, dir_out):
 
 def get_statistics(dir_in):
     datasets = ["BoolQ", "MCTest", "MultiRC", "SQUAD2", "COPA"]
-    kinds = ["train", "val", "test"]
     for dataset in datasets:
-        counts = dict()
+        counts = defaultdict(int)
         all = 0
-        for kind in kinds:
+        d = f"{dir_in}/{dataset}"
+        onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+        for file in onlyfiles:
+            kind = file.split(".")[0]
             with open(f"{dir_in}/{dataset}/{kind}.csv", encoding="utf8") as f:
                 reader = csv.reader(f)
                 number_of_lines = sum(1 for line in reader)
                 counts[kind] = number_of_lines
-                all += number_of_lines
+                if kind != "test_answered":
+                    all += number_of_lines
 
-        print(f"{dataset} train: {counts['train']/all:.2f}, val: {counts['val']/all:.2f}, test: {counts['test']/all:.2f}, absolute number of samples: {all}")
+        print(f"{dataset} train: {counts['train']/all:.2f}, val: {counts['val']/all:.2f}, test: {counts['test']/all:.2f}, test_answered: {counts['test_answered']/all:.2f}, absolute number of samples: {all}")
 
 
 

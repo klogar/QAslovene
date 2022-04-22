@@ -24,6 +24,6 @@ def merge(kind):
         writer.writerow(line)
 
 
-kinds = ["train", "val"]
+kinds = ["train", "val", "test_answered"]
 for kind in kinds:
     merge(kind)

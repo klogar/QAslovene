@@ -24,7 +24,8 @@ def find_property_with_value(array, property, value):
             return True
     return False
 
-def remove_punctuation(str):
+# This method was needed to correctly match questions / answers where some special characters were interpreted differently
+def remove_special_chars(str):
     return re.sub('[^A-Za-z0-9]+', '', str)
 
 def merge(datasets, kinds, dir):
@@ -48,15 +49,15 @@ def merge(datasets, kinds, dir):
 
 
 def add_answers_multirc_test(dir):
-    f1 = open(f"{dir}/MT/MultiRC/testprep/test1.json")
+    f1 = open(f"{dir}/MT/MultiRC/testprep/test1.json") # previously test_1_83-fixedIds.json
     data1 = json.load(f1)["data"]
 
-    f2 = open(f"{dir}/MT/MultiRC/testprep/test2.json")
+    f2 = open(f"{dir}/MT/MultiRC/testprep/test2.json") # previous test_2_83-fixedIds.json
     data2 = json.load(f2)["data"]
 
     lines = []
 
-    with jsonlines.open(f"{dir}/MT/MultiRC/testprep/test.jsonl") as reader:
+    with jsonlines.open(f"{dir}/MT/MultiRC/testprep/test.jsonl") as reader: # English test.jsonl
         for ind, line in enumerate(reader):
             questions = line["passage"]["questions"]
             for question in questions:
@@ -64,24 +65,25 @@ def add_answers_multirc_test(dir):
                     for d in data:
                         for question2 in d["paragraph"]["questions"]:
                             q = question2["question"]
-                            if remove_punctuation(q) == remove_punctuation(question["question"]):
+                            if remove_special_chars(q) == remove_special_chars(question["question"]):
                                 for answer in question["answers"]:
                                     for ans in question2["answers"]:
-                                        if remove_punctuation(answer["text"]) == remove_punctuation(ans["text"]):
+                                        if remove_special_chars(answer["text"]) == remove_special_chars(ans["text"]):
                                             answer["label"] = 1 if ans["isAnswer"] else 0
 
             lines.append(line)
 
-    writer = jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl", mode="w")
-    with jsonlines.open(f"{dir}/MT/MultiRC/test.jsonl") as reader:
+    writer = jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl", mode="w") # Slovene test_answered.jsonl
+    with jsonlines.open(f"{dir}/MT/MultiRC/test.jsonl") as reader: # Slovene test.jsonl
         for ind, l in enumerate(reader):
             for ind2, question in enumerate(l["passage"]["questions"]):
                 for ind3, ans in enumerate(question["answers"]):
                     try:
                         ans["label"] = lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["label"]
                     except:
-                        print(remove_punctuation(lines[ind]["passage"]["questions"][ind2]["question"]))
-                        print(remove_punctuation(lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["text"]))
+                        # This happens in case some answers were not matched and miss label
+                        print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["question"]))
+                        print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["text"]))
             writer.write(l)
 
 
