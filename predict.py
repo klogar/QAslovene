@@ -10,7 +10,8 @@ from tqdm.auto import tqdm
 
 # predict("./models/BoolQ/", "./datasets/encoded/BoolQ/test_answered.csv")
 
-dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
+# dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
+dataset_names = ["MultiRC"]
 model_name_or_path = f"./models/unified-small/"
 # Load trained model
 config = AutoConfig.from_pretrained(model_name_or_path)

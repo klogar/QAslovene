@@ -1,9 +1,13 @@
 import pandas as pd
 import datasets
+import multirc
+import jsonlines
 
-dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
+# dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
+dataset_names = ["MultiRC"]
 rouge = datasets.load_metric("rouge")
 squad = datasets.load_metric("squad")
+mrc = datasets.load_metric("multirc.py")
 
 for dataset in dataset_names:
     test_file = f"./datasets/encoded/{dataset}/test_answered.csv"
@@ -13,9 +17,9 @@ for dataset in dataset_names:
 
     # if dataset == "MultiRC":
     #     dataset = "MultiRC-small"
-    #
-    # prediction_file = f"./models/{dataset}/generated_predictions.txt"
-    prediction_file = f"./predictions/{dataset}/generated_predictions.txt"
+
+    # prediction_file = f"./models/{dataset}/generated_predictions.txt" # for each model by itself
+    prediction_file = f"./predictions/{dataset}/generated_predictions.txt" # for common model unified
     with open(prediction_file) as f:
         predictions = [line.strip() for line in f.readlines()]
 
@@ -35,6 +39,12 @@ for dataset in dataset_names:
 
     if dataset == "BoolQ":
         print(f"All non da/ne answers: {list(filter(lambda x: x not in ['da', 'ne'], predictions))}")
+    if dataset == "MultiRC":
+        with jsonlines.open(f"./datasets/encoded/answers/MultiRC.jsonl") as reader:
+            answers = [line["answers"] for line in reader]
+        mrc.add_batch(predictions=predictions, references=answers)
+        results = mrc.compute()
+        print(f"rouge-all-answers: {results:.2f}")
     if dataset == "SQUAD2":
         ap = list(zip(answers, predictions))
 
