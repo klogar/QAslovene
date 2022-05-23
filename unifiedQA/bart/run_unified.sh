@@ -1,0 +1,13 @@
+CUDA_VISIBLE_DEVICES=0 python cli.py \
+--do_train \
+--output_dir out/unifiedqa \
+--is_unifiedqa \
+--train_file data/train.tsv \
+--predict_file data/dev.tsv \
+--train_batch_size 8 \
+--predict_batch_size 8 \
+--append_another_bos \
+--do_lowercase \
+--skip_inference \
+--eval_period 10000 \
+--num_train_epochs 3

@@ -22,7 +22,7 @@ class MyBart(BartForConditionalGeneration):
             encoder_outputs=encoder_outputs,
             decoder_input_ids=_decoder_input_ids,
             decoder_attention_mask=decoder_attention_mask,
-            decoder_cached_states=decoder_cached_states,
+            # decoder_cached_states=decoder_cached_states,
             use_cache=use_cache,
         )
         lm_logits = F.linear(outputs[0], self.model.shared.weight, bias=self.final_logits_bias)

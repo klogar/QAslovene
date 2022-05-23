@@ -3,8 +3,8 @@ import datasets
 import multirc
 import jsonlines
 
-# dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
-dataset_names = ["MultiRC"]
+dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
+# dataset_names = ["MultiRC"]
 rouge = datasets.load_metric("rouge")
 squad = datasets.load_metric("squad")
 mrc = datasets.load_metric("multirc.py")

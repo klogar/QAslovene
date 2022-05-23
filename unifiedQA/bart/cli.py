@@ -86,6 +86,8 @@ def main():
                         help="Use a subset of data for debugging")
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
+    parser.add_argument('--n_gpu', type=int, default=1,
+                        help="number of gpus that should be used")
     args = parser.parse_args()
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
         print("Output directory () already exists and is not empty.")
@@ -108,8 +110,10 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    args.n_gpu = torch.cuda.device_count()
+    n_gpu = torch.cuda.device_count()
 
+    if args.n_gpu > n_gpu:
+        raise ValueError(f"You do not have {args.n_gpu} gpus, only {n_gpu}")
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 

@@ -10,20 +10,29 @@ from tqdm.auto import tqdm
 
 # predict("./models/BoolQ/", "./datasets/encoded/BoolQ/test_answered.csv")
 
-# dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
-dataset_names = ["MultiRC"]
-model_name_or_path = f"./models/unified-small/"
+
 # Load trained model
-config = AutoConfig.from_pretrained(model_name_or_path)
-tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path, config=config)
-print("Tokenizer and model loaded")
+def predict(model, dataset_names, prediction_filename):
+    model_name_or_path = f"./models/{model}/"
 
-for dataset_name in dataset_names:
-    dataset = datasets.load_dataset("csv", data_files=f"./datasets/encoded/{dataset_name}/test_answered.csv")
-    pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+    config = AutoConfig.from_pretrained(model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path, config=config)
+    print(f"Tokenizer and model loaded from {model_name_or_path}")
 
-    predictions = list(map(lambda x: x["generated_text"], pipe(dataset["train"]["input"])))
-    with open(f"./predictions/{dataset_name}/generated_predictions.txt", "w") as writer:
-        writer.write("\n".join(predictions))
+    for dataset_name in dataset_names:
+        dataset = datasets.load_dataset("csv", data_files={"test": f"./datasets/encoded/{dataset_name}/test_answered.csv"})
+        pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+
+        predictions = list(map(lambda x: x["generated_text"], pipe(dataset["test"]["input"])))
+        with open(f"./predictions/{dataset_name}/{prediction_filename}.txt", "w") as writer:
+            writer.write("\n".join(predictions))
+
+
+dataset_names = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
+# dataset_names = ["MultiRC"]
+models = ["BoolQ-small", "COPA-small", "MCTest-small", "MultiRC-small", "SQUAD2-small", "unified-small"]
+
+for model in models[-1:]:
+    predict(model, dataset_names, f"generated_predictions_dev")
 

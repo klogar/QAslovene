@@ -5,9 +5,19 @@ import re
 from os import listdir
 from os.path import isfile, join
 from collections import defaultdict
+from my_utils import read_csv
+import string
 
-fieldnames = ["input", "output"]
+fieldnames = ["input", "output", "type"]
 kinds = ["train", "val", "test"]
+
+
+def remove_punc(text):
+    exclude = set(string.punctuation)
+    return ''.join(ch for ch in text if ch not in exclude)
+
+def remove_leading_and_trailing_punctuation_and_spaces(text):
+    return text.strip().strip(string.punctuation).strip()
 
 def boolq(dir_in, dir_out):
     for kind in kinds:
@@ -19,7 +29,7 @@ def boolq(dir_in, dir_out):
                 if '?' not in question:
                     question = question + "?"
                 paragraph = line["passage"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
-                line_out["input"] = question + " \n " + paragraph
+                line_out["input"] = question + " \\n " + paragraph
                 if kind != "test": # test is without answers
                     answer = "da" if line["label"] else "ne"
                     line_out["output"] = answer
@@ -27,7 +37,7 @@ def boolq(dir_in, dir_out):
 
 def boolq_csv(dir_in, dir_out):
     d = f"{dir_in}/BoolQ"
-    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.jsonl"]
     for file in onlyfiles:
         kind = file.split(".")[0]
         f = open(f"{dir_out}/BoolQ/{kind}.csv", 'w', encoding='UTF8', newline='')
@@ -40,10 +50,11 @@ def boolq_csv(dir_in, dir_out):
                 if '?' not in question:
                     question = question + "?"
                 paragraph = line["passage"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
-                line_out["input"] = question + " \n " + paragraph
+                line_out["input"] = question + " \\n " + paragraph
                 if kind != "test": # test is without answers
                     answer = "da" if line["label"] else "ne"
                     line_out["output"] = answer
+                line_out["type"] = line["type"]
                 # if '"' in line_out["input"]:
                 #     print(line_out["input"])
                 writer.writerow(line_out)
@@ -59,7 +70,7 @@ def multirc(dir_in, dir_out):
                     if '?' not in question:
                         question = question + "?"
                     line_out = dict()
-                    line_out["input"] = question + " \n " + paragraph
+                    line_out["input"] = question + " \\n " + paragraph
                     if kind != "test":
                         for a in q["answers"]:
                             if a["label"] == 1:
@@ -69,10 +80,50 @@ def multirc(dir_in, dir_out):
 
 def multirc_csv(dir_in, dir_out):
     d = f"{dir_in}/MultiRC"
-    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.jsonl"]
     for file in onlyfiles:
         kind = file.split(".")[0]
         f = open(f"{dir_out}/MultiRC/{kind}.csv", 'w', encoding='UTF8', newline='')
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+
+        if kind == "test_answered":
+            writer_answers = jsonlines.open(f"{dir_out}/answers/MultiRC.jsonl", mode="w")
+        with jsonlines.open(f"{dir_in}/MultiRC/{kind}.jsonl") as reader:
+            for line in reader:
+                paragraph = line["passage"]["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
+                for q in line["passage"]["questions"]:
+                    question = q["question"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
+                    if '?' not in question:
+                        question = question + "?"
+                    line_out = dict()
+                    line_out["input"] = question + " \\n " + paragraph
+                    line_out["type"] = line["type"]
+                    answers = {"answers": []}
+                    if kind != "test":
+                        for a in q["answers"]:
+                            if a["label"] == 1:
+                                answer = a["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
+                                answers["answers"].append(answer)
+
+                        if answers["answers"] == []:
+                            ans = " < Ni odgovora >"
+                            answers["answers"].append(ans)
+
+                        line_out["output"] = answers["answers"][0] # only take first correct answer into consideration for general sets (train, val, test_answered)
+                        writer.writerow(line_out)
+                        if kind == "test_answered":
+                            writer_answers.write(answers) # remember all correct answers for test_answered set
+
+                    else:
+                        writer.writerow(line_out)
+
+def multirc_bin_csv(dir_in, dir_out):
+    d = f"{dir_in}/MultiRC"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.jsonl"]
+    for file in onlyfiles:
+        kind = file.split(".")[0]
+        f = open(f"{dir_out}/MultiRC-bin/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         with jsonlines.open(f"{dir_in}/MultiRC/{kind}.jsonl") as reader:
@@ -83,21 +134,24 @@ def multirc_csv(dir_in, dir_out):
                     if '?' not in question:
                         question = question + "?"
                     line_out = dict()
-                    line_out["input"] = question + " \n " + paragraph
+                    line_out["input"] = question + " \\n " + paragraph
+                    line_out["type"] = line["type"]
+                    answers = {"answers": []}
                     if kind != "test":
                         for a in q["answers"]:
                             if a["label"] == 1:
-                                line_out["output"] = a["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
+                                answer = a["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
+                                answers["answers"].append(answer)
 
-                                # if '"' in line_out["output"]:
-                                #     print(line_out["output"])
+                        if answers["answers"] == []:
+                            ans = " < Ni odgovora >"
+                            answers["answers"].append(ans)
 
-                                writer.writerow(line_out)
-                                break
-                    else:
-                        writer.writerow(line_out)
-                    # if '"' in line_out["input"]:
-                    #     print(line_out["input"])
+                        line_out["output"] = answers["answers"][0] # only take first correct answer into consideration for general sets (train, val, test_answered)
+                        if line_out["output"].lower() in ["da", "ne"]:
+                            writer.writerow(line_out)
+
+
 
 # Remove repeating words from translated datasets such as Okno, okno ali Vitez, vitez
 def remove_repeating_words(str):
@@ -109,7 +163,7 @@ def remove_repeating_words(str):
 
 def mctest_csv(dir_in, dir_out):
     d = f"{dir_in}/MCTest"
-    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.csv"]
     for file in onlyfiles:
         kind = file.split(".")[0]
         f = open(f"{dir_out}/MCTest/{kind}.csv", 'w', encoding='UTF8', newline='')
@@ -122,25 +176,24 @@ def mctest_csv(dir_in, dir_out):
                 if '?' not in question:
                     question = question + "?"
                 paragraph = line[0].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace("(angleščina)", "").replace("..", "")
-                input = question + " \n"
-                for letter, ans in zip(["A", "B", "C", "D"], line[2:-1]):
-                    ans = ans[:-1] if ans.endswith(".") else ans #remove dot
-                    ans = ans.replace("(angleščina)", "").replace("..", "")
-                    ans = remove_repeating_words(ans)
-                    if ans.startswith("- "):
-                        ans = ans[2:]
+                input = question + " \\n"
+                for letter, ans in zip(["A", "B", "C", "D"], line[2:-2]):
+                    # if ans.endswith(" je"):
+                    #     print(ans)
+                    ans = remove_leading_and_trailing_punctuation_and_spaces(remove_repeating_words(ans.replace("(angleščina)", ""))).replace("  ", " ")
                     input += f" ({letter}) {ans}"
-                input += " \n " + paragraph
-                output = remove_repeating_words(line[-1])
+                input += " \\n " + paragraph
+                output = remove_leading_and_trailing_punctuation_and_spaces(remove_repeating_words(line[-2].replace("(angleščina)", ""))).replace("  ", " ")
                 line_out = dict()
                 line_out["input"] = input
                 line_out["output"] = output
+                line_out["type"] = line[-1]
 
                 writer.writerow(line_out)
 
 def squad2_csv(dir_in, dir_out):
     d = f"{dir_in}/SQUAD2"
-    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.csv"]
     for file in onlyfiles:
         kind = file.split(".")[0]
         f = open(f"{dir_out}/SQUAD2/{kind}.csv", 'w', encoding='UTF8', newline='')
@@ -154,18 +207,39 @@ def squad2_csv(dir_in, dir_out):
                 question = line[1].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace("(angleščina)", "").replace("..", "")
                 if '?' not in question:
                     question = question + "?"
-                answer = remove_repeating_words(line[2]).replace("(angleščina)", "").replace("..", "")
-                if answer.startswith("- "):
-                    answer = answer[2:]
+                answer = remove_leading_and_trailing_punctuation_and_spaces(remove_repeating_words(line[2]).replace("(angleščina)", "")).replace("  ", " ") if line[2] != "< Ni odgovora >" else line[2]
 
                 line_out = dict()
-                line_out["input"] = question + " \n " + paragraph
+                line_out["input"] = question + " \\n " + paragraph
                 line_out["output"] = answer
+                line_out["type"] = line[-1]
                 writer.writerow(line_out)
+
+def squad_substring(dir_in):
+    d = f"{dir_in}/SQUAD2"
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) and f != "test.csv"]
+    squad = []
+    for file in onlyfiles:
+        path = f"{d}/{file}"
+        squad += read_csv(path)
+    squad = [get_question_context_answer(line) for line in squad]
+    squad = list(filter(lambda x: x[2] != "< Ni odgovora >", squad)) # only take into consideration those that have answers
+    is_substring = [answer.lower() in context.lower() for _, context, answer in squad]
+    print(f"Is answer substring of context? {is_substring.count(True)/len(is_substring):.2f}")
+    # for is_sub, example in zip(is_substring, squad):
+    #     if not is_sub:
+    #         print(f"{example[2], example[1]}")
+
+
+def get_question_context_answer(line):
+    question = line[0].split("\\n")[0]
+    paragraph = line[0].split("\\n")[1]
+    answer = line[1]
+    return question, paragraph, answer
 
 def copa_csv(dir_in, dir_out):
     d = f"{dir_in}/COPA"
-    onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+    onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.jsonl"]
     for file in onlyfiles:
         kind = file.split(".")[0]
         f = open(f"{dir_out}/COPA/{kind}.csv", mode="w", encoding='UTF8', newline='')
@@ -175,17 +249,19 @@ def copa_csv(dir_in, dir_out):
             for line in reader:
                 line_out = dict()
                 if line["question"] == "cause":
-                    question = "Kaj se je zgodilo kot rezultat akcije?"
-                elif line["question"] == "effect":
                     question = "Kaj je bil vzrok akcije?"
+                elif line["question"] == "effect":
+                    question = "Kaj se je zgodilo kot rezultat akcije?"
                 else:
                     print(f"Ne ustreza vprašanjem {line['question']}")
                 question = question.replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
                 paragraph = line["premise"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
                 choice1 = line["choice1"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
                 choice2 = line["choice2"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
-                input = f"{question} \n (A) {choice1} (B) {choice2} \n {paragraph}"
+                input = f"{question} \\n (A) {choice1} (B) {choice2} \\n {paragraph}"
                 line_out["input"] = input
+                line_out["type"] = line["type"]
+
                 if kind != "test": # test is without answers
                     output = choice1 if line["label"] == 0 else choice2
                     line_out["output"] = output
@@ -205,14 +281,52 @@ def get_statistics(dir_in):
             kind = file.split(".")[0]
             with open(f"{dir_in}/{dataset}/{kind}.csv", encoding="utf8") as f:
                 reader = csv.reader(f)
+                next(reader) # don't count header
                 number_of_lines = sum(1 for line in reader)
                 counts[kind] = number_of_lines
-                if kind != "test_answered":
+                if kind != "test":
                     all += number_of_lines
 
         print(f"{dataset} train: {counts['train']/all:.2f}, val: {counts['val']/all:.2f}, test: {counts['test']/all:.2f}, test_answered: {counts['test_answered']/all:.2f}, absolute number of samples: {all}")
 
+def get_absolute_statistics_table(dir_in):
+    datasets = ["BoolQ", "MCTest", "MultiRC", "SQUAD2", "COPA"]
+    for dataset in datasets:
+        counts = defaultdict(int)
+        all = 0
+        d = f"{dir_in}/{dataset}"
+        onlyfiles = [f for f in listdir(d) if isfile(join(d, f))]
+        for file in onlyfiles:
+            kind = file.split(".")[0]
+            with open(f"{dir_in}/{dataset}/{kind}.csv", encoding="utf8") as f:
+                reader = csv.reader(f)
+                next(reader) # don't count header
+                number_of_lines = sum(1 for line in reader)
+                counts[kind] = number_of_lines
+                if kind != "test":
+                    all += number_of_lines
 
+        print(f"{dataset} & {counts['train']} & {counts['val']} & {counts['test_answered']} \\\\")
+
+def get_length(dir_in):
+    datasets = ["BoolQ", "MCTest", "MultiRC", "SQUAD2", "COPA"]
+    for dataset in datasets:
+        d = f"{dir_in}/{dataset}"
+        onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) and f != "test.csv"]
+        lines = []
+        for file in onlyfiles:
+            kind = file.split(".")[0]
+            with open(f"{dir_in}/{dataset}/{kind}.csv", encoding="utf8") as f:
+                reader = csv.reader(f)
+                next(reader) # don't count header
+                lines += [line for line in reader]
+        questions = [line[0].split("\\n")[0] for line in lines]
+        paragraphs = [line[0].split("\\n")[1] for line in lines]
+        answers = [line[1] for line in lines]
+
+        for name, text in zip(["question", "paragraph", "answer"],[questions, paragraphs, answers]):
+            lengths = list(map(lambda x: len(x), text))
+            print(f"{dataset}: {name} - average length {float(sum(lengths)/len(lengths)):.2f}")
 
 
 
@@ -220,8 +334,12 @@ dir_in = "../../../Magistrska/Datasets/ALL"
 dir_out = "encoded"
 boolq_csv(dir_in, dir_out)
 multirc_csv(dir_in, dir_out)
+# multirc_bin_csv(dir_in, dir_out)
 mctest_csv(dir_in, dir_out)
 squad2_csv(dir_in, dir_out)
 copa_csv(dir_in, dir_out)
 
-get_statistics(dir_out)
+# squad_substring(dir_out)
+# get_length(dir_out)
+# get_statistics(dir_out)
+# get_absolute_statistics_table(dir_out)

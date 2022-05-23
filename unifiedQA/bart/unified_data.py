@@ -21,7 +21,7 @@ class UnifiedQAData(QAData):
             # "mctest_corrected_the_separator",
             # "squad1_1",
             "squad2",
-            # "boolq",
+            "boolq",
             # "race_string",
             # "openbookqa"
         ]
