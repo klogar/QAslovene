@@ -1,0 +1,450 @@
+# read lines and calculate F1/EM
+import collections
+import string
+import re
+import argparse
+import json
+import sys
+
+from collections import Counter
+from os import listdir
+from os.path import isfile, join, exists, isdir
+import pandas as pd
+from eval_utils import *
+import re
+import numpy as np
+import classla
+import jsonlines
+import matplotlib.pyplot as plt
+
+
+def eval_bool(dataset, model):
+    print(f"--------------------------{dataset}--------------------------------")
+    test_data = pd.read_csv(f"../datasets/encoded/{dataset}/{kind}.csv")
+    gold = [[g] for g in list(test_data["output"])]
+    context = [input.split("\\n")[1] for input in list(test_data["input"])]
+
+    dir = f"../models/{model}"
+    if checkpoint == "all":
+        all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
+        all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
+    elif checkpoint is not None:
+        all_directories = [f"{dir}/checkpoint-{checkpoint}"]
+    else:
+        all_directories = [dir]
+
+    evals = []
+
+    for directory in all_directories:
+        if kind_in_prediction_file:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        else:
+            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+        with open(prediction_file) as f:
+            predictions = [line.strip() for line in f.readlines()]
+
+        assert len(gold) == len(predictions), f" {len(predictions)}  / {len(gold)} "
+
+        f1 = exact_match = total = 0
+        answer_is_start_of_context = 0
+        total_no_ans = 0
+        for i, prediction in enumerate(predictions):
+            # For unanswerable questions, only correct answer is empty string
+            is_unanswerable = False
+            for g in gold[i]:
+                if no_ans in g.lower():
+                    # print(gold[i])
+                    gold[i] = [""]
+                    is_unanswerable = True
+                    break
+                if g == "": # when we already converted <ni odgovora> into empty string
+                    is_unanswerable = True
+            if no_ans in prediction.lower():
+                prediction = ""
+
+            em_current = max(compute_exact(a, prediction) for a in gold[i])
+            f1_current = max(compute_f1(a, prediction) for a in gold[i])
+
+            exact_match += em_current
+            f1 += f1_current
+            total += 1
+
+            if prediction == "": #no answer
+                total_no_ans += 1
+
+            if verbose:
+                if normalize_answer(prediction) not in ["da", "ne"]:
+                    print(f"Non yes/no prediction: {prediction}")
+                    print(f"Question:  {test_data['input'][i]}")
+                if no_ans in prediction.lower():
+                    print(prediction)
+                # if normalize_answer(context[i]).startswith(normalize_answer(prediction)):
+                #     answer_is_start_of_context += 1
+                # else:
+                #     print(prediction)
+                #     print(context[i])
+
+        # if verbose:
+        #     print(answer_is_start_of_context/total)
+        print(f"predicted no answer: {total_no_ans/total}")
+
+
+        exact_match = round(exact_match / total, 3)
+        f1 = round(f1 / total, 3)
+
+        eval = {'exact_match': exact_match, 'f1': f1}
+        # print(f" * {dataset} -> {eval}")
+        evals.append(eval)
+        print()
+    print(f"-------------------------end {dataset}---------------------------------")
+    print()
+    return evals
+
+def eval_mc(dataset, model):
+    print(f"--------------------------{dataset}--------------------------------")
+    test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
+
+    dir = f"../models/{model}"
+    if checkpoint == "all":
+        all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
+        all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
+    elif checkpoint is not None:
+        all_directories = [f"{dir}/checkpoint-{checkpoint}"]
+    else:
+        all_directories = [dir]
+
+    evals = []
+
+    for directory in all_directories:
+        if kind_in_prediction_file:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        else:
+            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+
+        test_data = pd.read_csv(test_file)
+        gold_lines = list(test_data["output"])
+        input_lines = list(test_data["input"])
+
+        with open(prediction_file) as f:
+            predictions = [line.strip() for line in f.readlines()]
+
+        assert len(gold_lines) == len(predictions)
+
+        regex = re.compile("\([A-E]\)")
+
+        accuracy = []
+        similar_to_context = 0
+        similar_to_quesiton = 0
+        completely_wrong = 0
+        total_no_ans = 0
+        for prediction, input, gold in zip(predictions, input_lines, gold_lines):
+            input_split = input.split("\\n")
+            candidates_string = input_split[1].strip()
+            candidates_split = regex.split(candidates_string)
+            candidates_split = [x.strip() for x in candidates_split if len(x.strip()) > 0]
+            # print(f"{prediction} <-> {candidates_split}")
+            scores = [score_string_similarity(x, prediction, nlp) for x in candidates_split]
+            max_idx = np.argmax(scores)
+            if max(scores) == 0:
+                accuracy.append(0)
+                completely_wrong += 1
+                if verbose:
+                    print(f" ***** ERRROR: {prediction} <-> {candidates_split} ")
+            else:
+                # TODO: If multiple options has max score, look for best token alignment
+                selected_ans = candidates_split[max_idx]
+
+                # print((gold, selected_ans), candidates_split)
+                if normalize_answer(selected_ans) == normalize_answer(gold):
+                    accuracy.append(1)
+                    # print(selected_ans, gold)
+                else:
+                    accuracy.append(0)
+
+
+            context = input_split[2]
+            question = input_split[0]
+            if score_string_similarity(context, prediction) > max(scores):
+                similar_to_context += 1
+            if score_string_similarity(question, prediction) > max(scores):
+                similar_to_quesiton += 1
+                # print(f"{accuracy[-1]} <-> {prediction} <-> {gold} <-> {candidates_split} <-> {context}")
+
+            if no_ans in prediction.lower():
+                total_no_ans += 1
+
+        print(f"similar to question {similar_to_quesiton/len(accuracy)}")
+        print(f"similar to context {similar_to_context/len(accuracy)}")
+        print(f"completely wrong {completely_wrong/len(accuracy)}")
+        print(f"predicted no answer {total_no_ans/len(accuracy)}")
+
+
+
+        accuracy = round(sum(accuracy) / len(accuracy), 3)
+        eval = {'accuracy': accuracy}
+        evals.append(eval)
+        print()
+    print(f"--------------------------end {dataset}--------------------------------")
+    print()
+    return evals
+
+def eval_multirc(dataset, model):
+    print(f"--------------------------{dataset}--------------------------------")
+    with jsonlines.open(f"./../datasets/encoded/answers/MultiRC-{kind}.jsonl") as reader:
+        golds = [line["answers"] for line in reader]
+
+    dir = f"../models/{model}"
+    if checkpoint == "all":
+        all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
+        all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
+    elif checkpoint is not None:
+        all_directories = [f"{dir}/checkpoint-{checkpoint}"]
+    else:
+        all_directories = [dir]
+
+    evals = []
+
+    for directory in all_directories:
+        if kind_in_prediction_file:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        else:
+            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+
+        with open(prediction_file) as f:
+            predictions = [line.strip() for line in f.readlines()]
+
+        scores = []
+        scores_em_bool = []
+        scores_f1_bool = []
+        total_bool = total_yes = total_no = 0
+        total_no_ans = 0
+
+        for gold, pred in zip(golds, predictions):
+            rouge_l_score = metric_max_over_ground_truths(rouge_l, pred, gold)
+            scores.append(rouge_l_score["rouge-l"]["f"])
+            normalized_gold = list(map(normalize_answer, gold))
+
+            if "da" in normalized_gold or "ne" in normalized_gold:
+                # if normalize_answer(pred) != "da" and normalize_answer(pred) != "ne":
+                #     print(pred, gold)
+                em_current = max(compute_exact(a, pred) for a in gold)
+                f1_current = max(compute_f1(a, pred) for a in gold)
+                scores_em_bool.append(em_current)
+                scores_f1_bool.append(f1_current)
+                total_bool += 1
+                if normalize_answer(pred) == "ne":
+                    total_no += 1
+                elif normalize_answer(pred) == "da":
+                    total_yes += 1
+                # print(f"{pred} || {gold}")
+            # if normalize_answer(pred) == "ne" or normalize_answer(pred) == "da":
+            #     print(f"{pred} || {gold}")
+            if no_ans in pred.lower() and no_ans not in gold:
+                total_no_ans += 1
+                # print(pred, gold)
+
+        print(total_bool, len(scores), total_bool/len(scores))
+        # print(f"yes: {total_yes/total_bool}, no: {total_no/total_bool}")
+        rougeL_score = round(sum(scores) / len(scores), 3)
+        em_bool_score = round(sum(scores_em_bool) / total_bool, 3)
+        f1_bool_score = round(sum(scores_f1_bool) / total_bool, 3)
+        no_answer = round(total_no_ans/len(scores), 3)
+        eval = {"rougeL": rougeL_score,
+                "em_bool": em_bool_score,
+                "f1_bool": f1_bool_score,
+                "no_answer": no_answer}
+        evals.append(eval)
+        # print()
+    print(f"--------------------------end {dataset}--------------------------------")
+    print()
+    return evals
+
+def eval_squad2(dataset, model):
+    print(f"--------------------------{dataset}--------------------------------")
+    test_data = pd.read_csv(f"../datasets/encoded/{dataset}/{kind}.csv")
+    gold = [[g] for g in list(test_data["output"])]
+
+    dir = f"../models/{model}"
+    if checkpoint == "all":
+        all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
+        all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
+    elif checkpoint is not None:
+        all_directories = [f"{dir}/checkpoint-{checkpoint}"]
+    else:
+        all_directories = [dir]
+
+    evals = []
+
+    for directory in all_directories:
+        if kind_in_prediction_file:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        else:
+            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+        with open(prediction_file) as f:
+            predictions = [line.strip() for line in f.readlines()]
+
+        assert len(gold) == len(predictions), f" {len(predictions)}  / {len(gold)} "
+
+        f1 = exact_match = total = 0
+        f1_with_ans = exact_match_with_ans = total_with_ans = 0
+        f1_wout_ans = exact_match_wout_ans = total_wout_ans = 0
+        total_no_ans = 0
+        scores = []
+        for i, prediction in enumerate(predictions):
+
+            # For unanswerable questions, only correct answer is empty string
+            is_unanswerable = False
+            for g in gold[i]:
+                if no_ans in g.lower():
+                    # print(gold[i])
+                    gold[i] = [""]
+                    is_unanswerable = True
+                    break
+                if g == "": # when we already converted <ni odgovora> into empty string
+                    is_unanswerable = True
+
+            if no_ans in prediction.lower():
+                prediction = ""
+
+            em_current = max(compute_exact(a, prediction) for a in gold[i])
+            f1_current = max(compute_f1(a, prediction) for a in gold[i])
+
+            exact_match += em_current
+            f1 += f1_current
+            total += 1
+
+            if is_unanswerable:
+                exact_match_wout_ans += em_current
+                f1_wout_ans += f1_current
+                total_wout_ans += 1
+            else:
+                exact_match_with_ans += em_current
+                f1_with_ans += f1_current
+                total_with_ans += 1
+
+            if prediction == "" and "" not in gold[i]:
+                total_no_ans += 1
+
+            # Print some answers and wrong predictions
+            # if em_current == 0 and i < 100:
+            #     print(f"Prediction: {prediction}")
+            #     print(f"True: {gold[i]}")
+
+            # Also calculate rouge L
+            rouge_l_score = metric_max_over_ground_truths(rouge_l, prediction, gold[i])
+            scores.append(rouge_l_score["rouge-l"]["f"])
+
+        exact_match = round(exact_match / total, 3)
+        f1 = round(f1 / total, 3)
+        exact_match_with_ans = round(exact_match_with_ans / total_with_ans, 3)
+        f1_with_ans = round(f1_with_ans / total_with_ans, 3)
+        exact_match_wout_ans = round(exact_match_wout_ans / total_wout_ans, 3)
+        f1_wout_ans = round(f1_wout_ans / total_wout_ans, 3)
+        rougeL = round(sum(scores) / len(scores), 3)
+        no_answer = round(total_no_ans/len(scores), 3)
+        eval = {'exact_match': exact_match, 'f1': f1,
+                'exact_match with answers': exact_match_with_ans, 'f1 with answers': f1_with_ans,
+                'exact_match without answers': exact_match_wout_ans, 'f1 without answers': f1_wout_ans,
+                'rougeL': rougeL, "no_answer": no_answer }
+        evals.append(eval)
+        # print()
+    print(f"--------------------------end {dataset}--------------------------------")
+    print()
+    return evals
+
+def plot_checkpoints(evaluation):
+    epochs = range(len(evaluation["BoolQ"]))
+    plt.plot(epochs, list(map(lambda x: x["exact_match"], evaluation["BoolQ"])), label="BoolQ - točnost")
+    plt.plot(epochs, list(map(lambda x: x["accuracy"], evaluation["COPA"])), label="COPA - točnost")
+    plt.plot(epochs, list(map(lambda x: x["accuracy"], evaluation["MCTest"])), label="MCTest - točnost")
+    plt.plot(epochs, list(map(lambda x: x["rougeL"], evaluation["MultiRC"])), label="MultiRC - rougeL")
+    plt.plot(epochs, list(map(lambda x: x["f1"], evaluation["SQUAD2"])), label="SQUAD2 - F1")
+    plt.axvline(x=best_epoch)
+    plt.legend()
+    plt.xlabel("Epohe")
+    plt.ylabel("Metrike")
+    plt.show()
+
+def plot_squad2(evaluation):
+    epochs = range(len(evaluation["SQUAD2"]))
+    plt.plot(epochs, list(map(lambda x: x["f1"], evaluation["SQUAD2"])), label="SQUAD2 - F1")
+    plt.plot(epochs, list(map(lambda x: x["exact_match"], evaluation["SQUAD2"])), label="SQUAD2 - EM")
+    plt.plot(epochs, list(map(lambda x: x["exact_match with answers"], evaluation["SQUAD2"])), label="SQUAD2 - EM answers")
+    plt.plot(epochs, list(map(lambda x: x["f1 with answers"], evaluation["SQUAD2"])), label="SQUAD2 - F1 answers")
+    plt.plot(epochs, list(map(lambda x: x["exact_match without answers"], evaluation["SQUAD2"])), label="SQUAD2 - EM without answers")
+    plt.plot(epochs, list(map(lambda x: x["rougeL"], evaluation["SQUAD2"])), label="SQUAD2 - rougeL")
+    plt.plot(epochs, list(map(lambda x: x["no_answer"], evaluation["SQUAD2"])), label="SQUAD2 - % of no answer")
+    plt.legend()
+    plt.xlabel("Epohe")
+    plt.ylabel("Metrike")
+    plt.show()
+
+def plot_multirc(evaluation):
+    epochs = range(len(evaluation["MultiRC"]))
+    plt.plot(epochs, list(map(lambda x: x["rougeL"], evaluation["MultiRC"])), label="MultiRC - rougeL")
+    plt.plot(epochs, list(map(lambda x: x["em_bool"], evaluation["MultiRC"])), label="MultiRC - EM bool")
+    plt.plot(epochs, list(map(lambda x: x["f1_bool"], evaluation["MultiRC"])), label="MultiRC - F1 bool")
+    plt.plot(epochs, list(map(lambda x: x["no_answer"], evaluation["MultiRC"])), label="MultiRC - % of no answer")
+    plt.legend()
+    plt.xlabel("Epohe")
+    plt.ylabel("Metrike")
+    plt.show()
+
+def get_best_epoch(evaluation):
+    average_evals = [0] * len(list(evaluation.values())[0])
+    for dataset, evals in evaluation.items():
+        # print(f"*** {dataset} *** -> {evals}")
+        for ind, eval in enumerate(evals):
+            if dataset == "BoolQ":
+                average_evals[ind] += eval["exact_match"]
+            elif dataset == "COPA" or dataset == "MCTest":
+                average_evals[ind] += eval["accuracy"]
+            elif dataset == "MultiRC":
+                average_evals[ind] += eval["rougeL"]
+            elif dataset == "SQUAD2":
+                average_evals[ind] += eval["f1"]
+    average_evals = [evals / len(evaluation.items()) for evals in average_evals]
+    # print(average_evals)
+    return average_evals.index(max(average_evals))
+
+no_ans = "< ni odgovora >"
+model = "SQUAD2-general-without-noanswers"
+verbose = False
+lemmatized = False
+if lemmatized:
+    classla.download("sl")
+    nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
+else:
+    nlp = None
+checkpoint = "all" # specific checkpoint, "all" or None
+kind = "val"
+kind_in_prediction_file = True
+
+evaluation = dict()
+evaluation["BoolQ"] = eval_bool("BoolQ", model)
+evaluation["COPA"] = eval_mc("COPA", model)
+evaluation["MCTest"] = eval_mc("MCTest", model)
+evaluation["MultiRC"] = eval_multirc("MultiRC", model)
+evaluation["SQUAD2"] = eval_squad2("SQUAD2", model)
+
+for dataset, evals in evaluation.items():
+    print(f"*** {dataset} *** -> {evals}")
+
+
+
+
+if checkpoint is not None:
+
+    best_epoch = get_best_epoch(evaluation)
+    print(f"Best epoch: {best_epoch + 1}")
+
+    for dataset, evals in evaluation.items():
+        print(f"*** {dataset} *** -> {evals[best_epoch]}")
+
+    plot_checkpoints(evaluation)
+    plot_squad2(evaluation)
+    plot_multirc(evaluation)
+
+
+
+

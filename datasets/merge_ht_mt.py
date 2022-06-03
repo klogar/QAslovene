@@ -86,6 +86,7 @@ def merge_mctest_deepl(dir_in):
                 line.append("MT")
                 data_mt.append(line)
     data = data_deepl + data_mt
+    data.sort(key=lambda k: (k[0][3:5], int(k[0][:3]), int(k[0][5:]))) # sort it the same as previously (kind (train, test, dev), 150/160, id)
     f_out = open(f"{dir_in}/MCTest-merged.csv", 'w', encoding='UTF8', newline='')
     writerc = csv.writer(f_out)
     writerc.writerows(data)
@@ -174,14 +175,15 @@ def add_answers_boolq_test(dir):
 
 
 
+
 # dir = "C:/Users/Katja/Documents/FRI/Magistrska/Datasets"
 datasets = ["BoolQ", "MultiRC", "COPA"]
 kinds = ["train", "val",  "test_answered"]
 dir = "../../../Magistrska/Datasets"
 
 # merge(datasets, kinds, dir)
-# merge_mctest_deepl("../../../Magistrska/Datasets/MT/translationprep")
-merge_squad_deepl("../../../Magistrska/Datasets/MT/translationprep")
+merge_mctest_deepl("../../../Magistrska/Datasets/MT/translationprep")
+# merge_squad_deepl("../../../Magistrska/Datasets/MT/translationprep")
 
 # add_answers_boolq_test(dir) # ni več teh datotek
 # add_answers_multirc_test(dir)

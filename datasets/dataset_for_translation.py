@@ -284,7 +284,7 @@ dir_in_split = "../../../Magistrska/Datasets/MT/translationprep"
 dir_out_split = "../../../Magistrska/Datasets/ALL"
 
 # mctest_qa(dir_in_split, dir_in_split)
-# mctest_split(dir_in_split, dir_out_split)
-squad2_split(dir_in_split, dir_out_split)
+mctest_split(dir_in_split, dir_out_split)
+# squad2_split(dir_in_split, dir_out_split)
 
-squad_multiple(dir_in, dir_out)
+# squad_multiple(dir_in, dir_out)

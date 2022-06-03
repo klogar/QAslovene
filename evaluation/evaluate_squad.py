@@ -12,6 +12,7 @@ from collections import Counter
 from os import listdir
 from os.path import isfile, join, exists
 import pandas as pd
+import classla
 
 
 def normalize_answer(s):
@@ -23,7 +24,11 @@ def normalize_answer(s):
     return ''.join(ch for ch in text if ch not in exclude)
   def lower(text):
     return text.lower()
-  return white_space_fix(remove_punc(lower(s)))
+  def lemmatize(text):
+      if lemmatized:
+          return " ".join(nlp(s).get("lemma"))
+      return text
+  return white_space_fix(remove_punc(lower(lemmatize(s))))
 
 def get_tokens(s):
   if not s: return []
@@ -203,4 +208,8 @@ def eval_dir_orig(dir, checkpoint='all'):
 
 no_ans = "< ni odgovora >"
 model = "unified-general"
+lemmatized = False
+if lemmatized:
+    classla.download("sl")
+    nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
 evaluation = eval_dir(model)

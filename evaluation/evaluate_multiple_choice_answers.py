@@ -6,14 +6,11 @@ import pandas as pd
 import string
 import classla
 
-classla.download("sl")
-nlp = classla.Pipeline("sl")
-
-def score_string_similarity(str1, str2):
+def score_string_similarity(str1, str2, lemmatized=False):
     if str1 == str2:
         return 3.0   # Better than perfect token match
-    str1 = normalize_answer(str1)
-    str2 = normalize_answer(str2)
+    str1 = normalize_answer(str1, lemmatized)
+    str2 = normalize_answer(str2, lemmatized)
     if str1 == str2:
         return 2.0
     if " " in str1 or " " in str2:
@@ -27,25 +24,7 @@ def score_string_similarity(str1, str2):
         else:
             return 0.0
 
-def score_string_similarity_lemmatized(str1, str2):
-    if str1 == str2:
-        return 3.0   # Better than perfect token match
-    str1 = normalize_answer(str1)
-    str2 = normalize_answer(str2)
-    if str1 == str2:
-        return 2.0
-    if " " in str1 or " " in str2:
-        str1_split = nlp(str1)
-        str2_split = nlp(str2)
-        overlap = list(set(str1_split) & set(str2_split))
-        return len(overlap) / max(len(str1_split), len(str2_split))
-    else:
-        if str1 == str2:
-            return 1.0
-        else:
-            return 0.0
-
-def normalize_answer(s):
+def normalize_answer(s, lemmatized=False):
   """Lower text and remove punctuation and extra whitespace."""
   def white_space_fix(text):
     return ' '.join(text.split())
@@ -54,7 +33,11 @@ def normalize_answer(s):
     return ''.join(ch for ch in text if ch not in exclude)
   def lower(text):
     return text.lower()
-  return white_space_fix(remove_punc(lower(s)))
+  def lemmatize(text):
+      if lemmatized:
+          return " ".join(nlp(s).get("lemma"))
+      return text
+  return white_space_fix(remove_punc(lower(lemmatize(s))))
 
 
 def eval_dir_orig(dir, checkpoints = 'all'):
@@ -96,15 +79,11 @@ def convert_predictions(dataset, model, lemmatized=False):
     accuracy = []
     for prediction, input, gold in zip(predictions, input_lines, gold_lines):
         input_split = input.split("\\n")
-        candidates_string = input_split[1].strip().lower()
+        candidates_string = input_split[1].strip()
         candidates_split = regex.split(candidates_string)
         candidates_split = [x.strip() for x in candidates_split if len(x.strip()) > 0]
         # print(f"{prediction} <-> {candidates_split}")
-        if lemmatized:
-            string_similarity = score_string_similarity_lemmatized
-        else:
-            string_similarity = score_string_similarity
-        scores = [string_similarity(x, prediction) for x in candidates_split]
+        scores = [score_string_similarity(x, prediction, lemmatized) for x in candidates_split]
         max_idx = np.argmax(scores)
         # TODO: If multiple options has max score, look for best token alignment
         selected_ans = candidates_split[max_idx]
@@ -189,10 +168,13 @@ def convert_predictions_orig(input, pred, meta_file):
 
     print(f" *** {pred} \t {100.0 * sum(accuracy) / len(accuracy)}")
 
-regex = re.compile("\([a-e]\)")
+regex = re.compile("\([A-E]\)")
 datasets = ["MCTest", "COPA"]
 model = "unified-general"
 lemmatized = True
+if lemmatized:
+    classla.download("sl")
+    nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
 for dataset in datasets:
     evaluation = eval_dir(dataset, model, lemmatized)
 

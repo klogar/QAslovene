@@ -1,7 +1,7 @@
 import deepl
 import csv
 
-auth_key = ""  # Replace with your key
+auth_key = "d1e82830-9e41-0939-b652-11e97b32e6ac:fx"  # Replace with your key
 
 def translate_deepl_mctest(texts, ids):
     # Create a Translator object providing your DeepL API authentication key.
@@ -93,6 +93,6 @@ def compare_translations_squad(deepl_file, my_file):
         print(f"DEEPL: {d}")
         print(f"MY: {m}")
 
-# compare_translations_mctest("../../../Magistrska/Datasets/English/translationprep/MCTest-deepl.csv", "../../../Magistrska/Datasets/MT/translationprep/MCTest-sl.csv")
+compare_translations_mctest("../../../Magistrska/Datasets/English/translationprep/MCTest-deepl.csv", "../../../Magistrska/Datasets/MT/translationprep/MCTest-sl.csv")
 # compare_translations_squad("../../../Magistrska/Datasets/English/translationprep/Squad-deepl-train-qa.csv", "../../../Magistrska/Datasets/MT/translationprep/Squad-train-qa-sl.csv")
 

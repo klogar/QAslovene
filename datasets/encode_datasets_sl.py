@@ -87,8 +87,7 @@ def multirc_csv(dir_in, dir_out):
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
-        if kind == "test_answered":
-            writer_answers = jsonlines.open(f"{dir_out}/answers/MultiRC.jsonl", mode="w")
+        writer_answers = jsonlines.open(f"{dir_out}/answers/MultiRC-{kind}.jsonl", mode="w")
         with jsonlines.open(f"{dir_in}/MultiRC/{kind}.jsonl") as reader:
             for line in reader:
                 paragraph = line["passage"]["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
@@ -112,8 +111,7 @@ def multirc_csv(dir_in, dir_out):
 
                         line_out["output"] = answers["answers"][0] # only take first correct answer into consideration for general sets (train, val, test_answered)
                         writer.writerow(line_out)
-                        if kind == "test_answered":
-                            writer_answers.write(answers) # remember all correct answers for test_answered set
+                        writer_answers.write(answers) # remember all correct answers
 
                     else:
                         writer.writerow(line_out)
@@ -328,16 +326,67 @@ def get_length(dir_in):
             lengths = list(map(lambda x: len(x), text))
             print(f"{dataset}: {name} - average length {float(sum(lengths)/len(lengths)):.2f}")
 
+def find_human_translation_if_exists(d, ht_data, mt_data):
+    assert len(ht_data) == len(mt_data)
+
+    for ind, (ht, mt) in enumerate(zip(ht_data, mt_data)):
+        if mt["question"] == d["question"] and mt["context"] == d["context"]:
+            return ht
+    return None
+
+def squad2_project_csv(dir_in, dir_out):
+    kinds = ["train", "val"]
+    with open(f"{dir_in}/SQUAD2-project/ht.json", encoding='UTF8') as f:
+        ht_data = json.load(f)["data"]
+    with open(f"{dir_in}/SQUAD2-project/mt.json", encoding='UTF8') as f:
+        mt_data = json.load(f)["data"]
+
+    for kind in kinds:
+        if kind == "train":
+            f_test = open(f"{dir_out}/SQUAD2-project/test_answered.csv", mode="w", encoding='UTF8', newline='')
+            writer_test = csv.DictWriter(f_test, fieldnames=fieldnames)
+            writer_test.writeheader()
+        f = open(f"{dir_out}/SQUAD2-project/{kind}.csv", mode="w", encoding='UTF8', newline='')
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        with open(f"{dir_in}/SQUAD2-project/{kind}.json", encoding='UTF8') as f:
+            data = json.load(f)["data"]
+            for ind, d in enumerate(data):
+                ht = find_human_translation_if_exists(d, ht_data, mt_data)
+                type = "MT"
+                if ht is not None:
+                    d = ht
+                    type = "HT"
+                context = d["context"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")
+                question = d["question"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")
+
+
+                line_out = dict()
+                input = f"{question} \\n {context}"
+                if len(d["answers"]["text"]) == 0:
+                    output = "< Ni odgovora >"
+                else:
+                    output = d["answers"]["text"][0].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")
+                line_out["input"] = input
+                line_out["output"] = output
+                line_out["type"] = type
+                if kind == "train" and ind > 100000:
+                    writer_test.writerow(line_out)
+                else:
+                    writer.writerow(line_out)
+
+
 
 
 dir_in = "../../../Magistrska/Datasets/ALL"
 dir_out = "encoded"
-boolq_csv(dir_in, dir_out)
-multirc_csv(dir_in, dir_out)
+# boolq_csv(dir_in, dir_out)
+# multirc_csv(dir_in, dir_out)
 # multirc_bin_csv(dir_in, dir_out)
-mctest_csv(dir_in, dir_out)
-squad2_csv(dir_in, dir_out)
-copa_csv(dir_in, dir_out)
+# mctest_csv(dir_in, dir_out)
+# squad2_csv(dir_in, dir_out)
+squad2_project_csv(dir_in, dir_out)
+# copa_csv(dir_in, dir_out)
 
 # squad_substring(dir_out)
 # get_length(dir_out)

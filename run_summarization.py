@@ -625,9 +625,31 @@ def main():
                         predict_results.predictions, skip_special_tokens=True, clean_up_tokenization_spaces=True
                     )
                     predictions = [pred.strip() for pred in predictions]
-                    output_prediction_file = os.path.join(training_args.output_dir, f"{dataset_name}_generated_predictions.txt")
+                    kind = data_args.test_file.split(".")[0]  # e.g. train, val, test_answered
+                    output_prediction_file = os.path.join(training_args.output_dir, f"{dataset_name}_{kind}_generated_predictions.txt")
                     with open(output_prediction_file, "w") as writer:
                         writer.write("\n".join(predictions))
+
+    # if data_args.do_generate:
+    #     logger.info("*** Generate ***")
+    #
+    #     for dataset_name, predict_dataset in predict_datasets.items():
+    #         predict_results = model.generate(
+    #             predict_dataset,
+    #             max_length=max_length,
+    #             num_beams=num_beams
+    #         )
+    #
+    #         if trainer.is_world_process_zero():
+    #             if training_args.predict_with_generate:
+    #                 predictions = tokenizer.batch_decode(
+    #                     predict_results, skip_special_tokens=True, clean_up_tokenization_spaces=True
+    #                 )
+    #                 predictions = [pred.strip() for pred in predictions]
+    #                 kind = data_args.test_file.split(".")[0] # e.g. train, val, test_answered
+    #                 output_prediction_file = os.path.join(training_args.output_dir, f"{dataset_name}_{kind}_generated_predictions.txt")
+    #                 with open(output_prediction_file, "w") as writer:
+    #                     writer.write("\n".join(predictions))
 
     kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "question answering"}
     if data_args.dataset_name is not None:
