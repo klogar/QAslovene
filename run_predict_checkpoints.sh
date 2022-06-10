@@ -1,7 +1,8 @@
 MAX_SOURCE_LENGTH=512
 MAX_TARGET_LENGTH=100
+PER_DEVICE_EVAL_BATCH_SIZE=8
 
-MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/without-BoolQ"
+MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/without-MCTest-all"
 OUTPUT_DIR=$MODEL_NAME_OR_PATH
 CHECKPOINTS=($( ls -d ${MODEL_NAME_OR_PATH}/checkpoint* ))
 for checkpoint in "${CHECKPOINTS[@]}"
@@ -21,9 +22,13 @@ do
    --predict_with_generate\
    --metric_for_best_model "predict_rougeL" \
    --greater_is_better=True \
-   --datasets "SQUAD2,BoolQ,COPA,MCTest,MultiRC" \
+   --datasets "SQUAD2-project,BoolQ,COPA,MultiRC" \
    --datasets_path "/home/katjal/QAslovene/datasets/encoded/" \
-   --num_beams=4
+   --num_beams=4 \
+   --per_device_eval_batch_size $PER_DEVICE_EVAL_BATCH_SIZE
 done
+
+
+#--datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC" \
 
 

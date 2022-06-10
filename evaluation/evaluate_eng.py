@@ -10,7 +10,7 @@ from collections import Counter
 from os import listdir
 from os.path import isfile, join, exists, isdir
 import pandas as pd
-from eval_utils import *
+from eval_utils_eng import *
 import re
 import numpy as np
 import classla
@@ -25,7 +25,7 @@ def eval_bool(dataset, model):
     context = [input.split("\\n")[1] for input in list(test_data["input"])]
     type = list(test_data["type"])
 
-    dir = f"../models/{model}"
+    dir = f"../predictions/{folder}"
     if checkpoint == "all":
         all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
         all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
@@ -66,8 +66,8 @@ def eval_bool(dataset, model):
             if no_ans in prediction.lower():
                 prediction = ""
 
-            em_current = max(compute_exact(a, prediction, nlp=nlp) for a in gold[i])
-            f1_current = max(compute_f1(a, prediction, nlp=nlp) for a in gold[i])
+            em_current = max(compute_exact(a, prediction) for a in gold[i])
+            f1_current = max(compute_f1(a, prediction) for a in gold[i])
 
             exact_match += em_current
             f1 += f1_current
@@ -77,7 +77,7 @@ def eval_bool(dataset, model):
                 total_no_ans += 1
 
             if verbose:
-                if normalize_answer(prediction) not in ["da", "ne"]:
+                if normalize_answer(prediction) not in ["yes", "no"]:
                     print(f"Non yes/no prediction: {prediction}")
                     print(f"Question:  {test_data['input'][i]}")
                     total_not_yesno += 1
@@ -110,7 +110,7 @@ def eval_mc(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
 
-    dir = f"../models/{model}"
+    dir = f"../predictions/{folder}"
     if checkpoint == "all":
         all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
         all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
@@ -153,7 +153,7 @@ def eval_mc(dataset, model):
             candidates_split = regex.split(candidates_string)
             candidates_split = [x.strip() for x in candidates_split if len(x.strip()) > 0]
             # print(f"{prediction} <-> {candidates_split}")
-            scores = [score_string_similarity(x, prediction, nlp=nlp) for x in candidates_split]
+            scores = [score_string_similarity(x, prediction) for x in candidates_split]
             max_idx = np.argmax(scores)
             if max(scores) == 0:
                 accuracy.append(0)
@@ -165,13 +165,13 @@ def eval_mc(dataset, model):
                 selected_ans = candidates_split[max_idx]
 
                 # print((gold, selected_ans), candidates_split)
-                if normalize_answer(selected_ans, nlp=nlp) == normalize_answer(gold, nlp=nlp):
+                if normalize_answer(selected_ans) == normalize_answer(gold):
                     accuracy.append(1)
                     # print(selected_ans, gold)
                 else:
                     accuracy.append(0)
             # exact match
-            em = compute_exact(gold, prediction, nlp=nlp)
+            em = compute_exact(gold, prediction)
             scores_em.append(em)
 
 
@@ -204,11 +204,11 @@ def eval_mc(dataset, model):
 
 def eval_multirc(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
-    with jsonlines.open(f"./../datasets/encoded/answers/MultiRC-{kind}.jsonl") as reader:
+    with jsonlines.open(f"./../datasets/encoded/answers/MultiRC-eng-{kind}.jsonl") as reader:
         golds = [line["answers"] for line in reader]
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
 
-    dir = f"../models/{model}"
+    dir = f"../predictions/{folder}"
     if checkpoint == "all":
         all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
         all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
@@ -245,29 +245,29 @@ def eval_multirc(dataset, model):
                 continue # skip no answer questions
             if filter_machine_translation and type_lines[ind] == "MT":
                 continue
-            rouge_l_score = metric_max_over_ground_truths(rouge_l, pred, gold, nlp=nlp)
+            rouge_l_score = metric_max_over_ground_truths(rouge_l, pred, gold)
             scores.append(rouge_l_score["rouge-l"]["f"])
             normalized_gold = list(map(normalize_answer, gold))
 
-            em_current = max(compute_exact(a, pred, nlp=nlp) for a in gold)
-            f1_current = max(compute_f1(a, pred, nlp=nlp) for a in gold)
+            em_current = max(compute_exact(a, pred) for a in gold)
+            f1_current = max(compute_f1(a, pred) for a in gold)
             scores_em.append(em_current)
             scores_f1.append(f1_current)
 
-            if "da" in normalized_gold or "ne" in normalized_gold:
+            if "yes" in normalized_gold or "no" in normalized_gold:
                 # if normalize_answer(pred) != "da" and normalize_answer(pred) != "ne":
                 #     print(pred, gold)
 
                 scores_em_bool.append(em_current)
                 scores_f1_bool.append(f1_current)
                 total_bool += 1
-                if normalize_answer(pred) == "ne":
+                if normalize_answer(pred) == "no":
                     total_no += 1
-                elif normalize_answer(pred) == "da":
+                elif normalize_answer(pred) == "yes":
                     total_yes += 1
-                if "da" in normalized_gold:
+                if "yes" in normalized_gold:
                     total_yes_gold += 1
-                if "ne" in normalized_gold:
+                if "no" in normalized_gold:
                     total_no_gold += 1
                 # print(f"{pred} || {gold}")
             # if normalize_answer(pred) == "ne" or normalize_answer(pred) == "da":
@@ -298,11 +298,11 @@ def eval_multirc(dataset, model):
 
 def eval_squad2(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
-    with jsonlines.open(f"./../datasets/encoded/answers/SQUAD2-project-{kind}.jsonl") as reader:
+    with jsonlines.open(f"./../datasets/encoded/answers/SQUAD2-eng-{kind}.jsonl") as reader:
         gold = [line["answers"] for line in reader]
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
 
-    dir = f"../models/{model}"
+    dir = f"../predictions/{folder}"
     if checkpoint == "all":
         all_directories = [f"{dir}/{f}" for f in listdir(dir) if isdir(join(dir, f)) and "checkpoint-" in f]
         all_directories.sort(key=lambda k: (int(k.split("-")[-1])))
@@ -350,8 +350,8 @@ def eval_squad2(dataset, model):
 
             if filter_no_answer and is_unanswerable:
                 continue # skip <no answer> question
-            em_current = max(compute_exact(a, prediction, nlp=nlp) for a in gold[i])
-            f1_current = max(compute_f1(a, prediction, nlp=nlp) for a in gold[i])
+            em_current = max(compute_exact(a, prediction) for a in gold[i])
+            f1_current = max(compute_f1(a, prediction) for a in gold[i])
 
             exact_match += em_current
             f1 += f1_current
@@ -375,7 +375,7 @@ def eval_squad2(dataset, model):
             #     print(f"True: {gold[i]}")
 
             # Also calculate rouge L
-            rouge_l_score = metric_max_over_ground_truths(rouge_l, prediction, gold[i], nlp=nlp)
+            rouge_l_score = metric_max_over_ground_truths(rouge_l, prediction, gold[i])
             scores.append(rouge_l_score["rouge-l"]["f"])
 
         exact_match = round(exact_match / total, 3)
@@ -399,7 +399,7 @@ def eval_squad2(dataset, model):
 def plot_checkpoints(evaluation):
     epochs = range(len(evaluation["BoolQ"]))
     plt.plot(epochs, list(map(lambda x: x["exact_match"], evaluation["BoolQ"])), label="BoolQ - točnost")
-    # plt.plot(epochs, list(map(lambda x: x["accuracy"], evaluation["COPA"])), label="COPA - točnost")
+    plt.plot(epochs, list(map(lambda x: x["accuracy"], evaluation["COPA"])), label="COPA - točnost")
     plt.plot(epochs, list(map(lambda x: x["accuracy"], evaluation["MCTest"])), label="MCTest - točnost")
     plt.plot(epochs, list(map(lambda x: x["rougeL"], evaluation["MultiRC"])), label="MultiRC - rougeL")
     plt.plot(epochs, list(map(lambda x: x["f1"], evaluation["SQUAD2"])), label="SQUAD2 - F1")
@@ -449,29 +449,24 @@ def get_best_epoch(evaluation):
                 average_evals[ind] += eval["f1"]
     average_evals = [evals / len(evaluation.items()) for evals in average_evals]
     # print(average_evals)
-    return average_evals.index(max(average_evals)), max(average_evals)
+    return average_evals.index(max(average_evals))
 
-no_ans = "< ni odgovora >"
-model = "without-COPA-all"
+no_ans = "no answer>"
+model = "allenai/unifiedqa-t5-small"
 verbose = True
-lemmatized = False
-if lemmatized:
-    classla.download("sl")
-    nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
-else:
-    nlp = None
-checkpoint = "all" # specific checkpoint, "all" or None
-kind = "val"
+checkpoint = None # specific checkpoint, "all" or None
+kind = "test_answered"
 kind_in_prediction_file = True
 filter_no_answer = False
 filter_machine_translation = False
+folder = "English-lower"
 
 evaluation = dict()
-evaluation["BoolQ"] = eval_bool("BoolQ", model)
-# evaluation["COPA"] = eval_mc("COPA", model)
-evaluation["MCTest"] = eval_mc("MCTest", model)
-evaluation["MultiRC"] = eval_multirc("MultiRC", model)
-evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
+evaluation["BoolQ"] = eval_bool("BoolQ-eng", model)
+evaluation["COPA"] = eval_mc("COPA-eng", model)
+evaluation["MCTest"] = eval_mc("MCTest-eng", model)
+evaluation["MultiRC"] = eval_multirc("MultiRC-eng", model)
+evaluation["SQUAD2"] = eval_squad2("SQUAD2-eng", model)
 
 for dataset, evals in evaluation.items():
     print(f"*** {dataset} *** -> {evals}")
@@ -481,16 +476,15 @@ for dataset, evals in evaluation.items():
 
 if checkpoint is not None:
 
-    best_epoch, average = get_best_epoch(evaluation)
+    best_epoch = get_best_epoch(evaluation)
     print(f"Best epoch: {best_epoch + 1}")
-    print(f"Average: {average}")
 
     for dataset, evals in evaluation.items():
         print(f"*** {dataset} *** -> {evals[best_epoch]}")
 
-    plot_checkpoints(evaluation)
-    plot_squad2(evaluation)
-    plot_multirc(evaluation)
+    # plot_checkpoints(evaluation)
+    # plot_squad2(evaluation)
+    # plot_multirc(evaluation)
 
 
 

@@ -144,7 +144,8 @@ def add_answers_multirc_test(dir):
                                             answer["label"] = 1 if ans["isAnswer"] else 0
 
             lines.append(line)
-
+    writer_eng = jsonlines.open(f"{dir}/MT/MultiRC/testprep/test_answered.jsonl", mode="w") # English test_answered.jsonl
+    writer_eng.write_all(lines)
     writer = jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl", mode="w") # Slovene test_answered.jsonl
     with jsonlines.open(f"{dir}/MT/MultiRC/test.jsonl") as reader: # Slovene test.jsonl
         for ind, l in enumerate(reader):
@@ -182,11 +183,11 @@ kinds = ["train", "val",  "test_answered"]
 dir = "../../../Magistrska/Datasets"
 
 # merge(datasets, kinds, dir)
-merge_mctest_deepl("../../../Magistrska/Datasets/MT/translationprep")
+# merge_mctest_deepl("../../../Magistrska/Datasets/MT/translationprep")
 # merge_squad_deepl("../../../Magistrska/Datasets/MT/translationprep")
 
 # add_answers_boolq_test(dir) # ni več teh datotek
-# add_answers_multirc_test(dir)
+add_answers_multirc_test(dir)
 
 get_statistics(dir, datasets, kinds)
 get_statistics_table(dir, datasets, kinds)

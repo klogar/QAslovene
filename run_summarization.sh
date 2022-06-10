@@ -9,7 +9,7 @@ GRADIENT_ACCUMULATION=1
 
 for i in 0 0
 do
-OUTPUT_DIR="/home/katjal/QAslovene/models/unified-general-all-2"
+OUTPUT_DIR="/home/katjal/QAslovene/models/without-MultiRC-all"
 MODEL_NAME_OR_PATH=${MODEL_PATHS[$i]}
 CUDA_VISIBLE_DEVICES=0 python run_summarization.py\
  --model_name_or_path $MODEL_NAME_OR_PATH \
@@ -26,10 +26,10 @@ CUDA_VISIBLE_DEVICES=0 python run_summarization.py\
  --save_strategy epoch \
  --seed 42 \
  --gradient_accumulation_steps $GRADIENT_ACCUMULATION \
- --datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC" \
+ --datasets "SQUAD2-project,BoolQ,COPA,MCTest" \
  --datasets_path "/home/katjal/QAslovene/datasets/encoded/" \
  --num_beams=4 \
-
+ --lowercase=True
 
 done
 
@@ -43,4 +43,4 @@ done
 # --greater_is_better=True \
 #--save_total_limit=1 \
 #  --filter_no_answer=True
-#--datasets "SQUAD2,BoolQ,COPA,MCTest,MultiRC" \
+#--datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC" \

@@ -1,10 +1,14 @@
-import string
+import re
 import collections
+import string
 import rouge
 import copy
 
-def normalize_answer(s, nlp=None):
-  """Lower text and remove punctuation and extra whitespace."""
+def normalize_answer(s):
+  """Lower text and remove punctuation, articles and extra whitespace."""
+  def remove_articles(text):
+    regex = re.compile(r'\b(a|an|the)\b', re.UNICODE)
+    return re.sub(regex, ' ', text)
   def white_space_fix(text):
     return ' '.join(text.split())
   def remove_punc(text):
@@ -12,22 +16,18 @@ def normalize_answer(s, nlp=None):
     return ''.join(ch for ch in text if ch not in exclude)
   def lower(text):
     return text.lower()
-  def lemmatize(text):
-      if nlp is not None:
-          return " ".join(nlp(s).get("lemma"))
-      return text
-  return white_space_fix(remove_punc(lower(lemmatize(s))))
+  return white_space_fix(remove_articles(remove_punc(lower(s))))
 
-def get_tokens(s, nlp=None):
+def get_tokens(s):
   if not s: return []
-  return normalize_answer(s, nlp=nlp).split()
+  return normalize_answer(s).split()
 
-def compute_exact(a_gold, a_pred, nlp=None):
-  return int(normalize_answer(a_gold, nlp=nlp) == normalize_answer(a_pred, nlp=nlp))
+def compute_exact(a_gold, a_pred):
+  return int(normalize_answer(a_gold) == normalize_answer(a_pred))
 
-def compute_f1(a_gold, a_pred, nlp=None):
-  gold_toks = get_tokens(a_gold, nlp=nlp)
-  pred_toks = get_tokens(a_pred, nlp=nlp)
+def compute_f1(a_gold, a_pred):
+  gold_toks = get_tokens(a_gold)
+  pred_toks = get_tokens(a_pred)
   common = collections.Counter(gold_toks) & collections.Counter(pred_toks)
   num_same = sum(common.values())
   if len(gold_toks) == 0 or len(pred_toks) == 0:
@@ -40,11 +40,11 @@ def compute_f1(a_gold, a_pred, nlp=None):
   f1 = (2 * precision * recall) / (precision + recall)
   return f1
 
-def score_string_similarity(str1, str2, nlp=None):
+def score_string_similarity(str1, str2):
     if str1 == str2:
         return 3.0   # Better than perfect token match
-    str1 = normalize_answer(str1, nlp=nlp)
-    str2 = normalize_answer(str2, nlp=nlp)
+    str1 = fix_buggy_characters(normalize_answer(str1))
+    str2 = fix_buggy_characters(normalize_answer(str2))
     if str1 == str2:
         return 2.0
     if " " in str1 or " " in str2:
@@ -57,6 +57,13 @@ def score_string_similarity(str1, str2, nlp=None):
             return 1.0
         else:
             return 0.0
+
+def replace_punctuation(str):
+    return str.replace("\"", "").replace("'", "")
+
+# Temporary fix for bug where {}^<\` characters roundtrip into \u2047 (??) character
+def fix_buggy_characters(str):
+    return re.sub("[{}^\\\\`\u2047<]", " ", str)
 
 rouge_l_evaluator = rouge.Rouge(
     metrics=["rouge-l"],
@@ -74,13 +81,9 @@ rouge_l_evaluator = rouge.Rouge(
 def rouge_l(p, g):
     return rouge_l_evaluator.get_scores(p, g)
 
-def metric_max_over_ground_truths(metric_fn, prediction, ground_truths, nlp=None):
+def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
     scores_for_ground_truths = []
-
     for ground_truth in ground_truths:
-        if nlp is not None:
-            prediction = normalize_answer(prediction, nlp=nlp)
-            ground_truth = normalize_answer(ground_truth, nlp=nlp)
         score = metric_fn(prediction, [ground_truth])
         scores_for_ground_truths.append(score)
     if isinstance(score, dict) and "rouge-l" in score:

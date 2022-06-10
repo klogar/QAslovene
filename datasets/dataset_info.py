@@ -80,6 +80,14 @@ def squad2_info():
         ht = list(filter(lambda x: x == "HT", type_lines))
         print(f"{kind} - % of human translated {len(ht) / len(gold_lines)}, total {len(ht)}")
 
+        context_lines = [line.split("\\n")[-1] for line in list(data["input"])]
+        in_context = [answer in context for context, answer in zip(context_lines, gold_lines) if answer != "< Ni odgovora >"]
+        print(f"Actually in context {in_context.count(True)/(len(gold_lines) - len(no_answers))}")
+
+        print(f"{kind} size: {len(gold_lines)}")
+
+        print()
+
 dir = "encoded"
 # mc_info("COPA")
 # mc_info("MCTest")

@@ -342,13 +342,30 @@ def squad2_project_csv(dir_in, dir_out):
         mt_data = json.load(f)["data"]
 
     for kind in kinds:
+        # split train set into train and validation and use val set as test set
         if kind == "train":
-            f_test = open(f"{dir_out}/SQUAD2-project/test_answered.csv", mode="w", encoding='UTF8', newline='')
-            writer_test = csv.DictWriter(f_test, fieldnames=fieldnames)
-            writer_test.writeheader()
-        f = open(f"{dir_out}/SQUAD2-project/{kind}.csv", mode="w", encoding='UTF8', newline='')
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+            f_val = open(f"{dir_out}/SQUAD2-project/val.csv", mode="w", encoding='UTF8', newline='')
+            writer_val = csv.DictWriter(f_val, fieldnames=fieldnames)
+            writer_val.writeheader()
+
+            f = open(f"{dir_out}/SQUAD2-project/train.csv", mode="w", encoding='UTF8', newline='')
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            writer_val_results = jsonlines.open(f"{dir_out}/answers/SQUAD2-project-val.jsonl", mode="w")
+            writer_results = jsonlines.open(f"{dir_out}/answers/SQUAD2-project-train.jsonl", mode="w")
+
+
+        elif kind == "val":
+            f = open(f"{dir_out}/SQUAD2-project/test_answered.csv", mode="w", encoding='UTF8', newline='')
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            writer_results = jsonlines.open(f"{dir_out}/answers/SQUAD2-project-test_answered.jsonl", mode="w")
+
+        else:
+            raise "Non anticipated dataset versions"
+
         with open(f"{dir_in}/SQUAD2-project/{kind}.json", encoding='UTF8') as f:
             data = json.load(f)["data"]
             for ind, d in enumerate(data):
@@ -363,17 +380,25 @@ def squad2_project_csv(dir_in, dir_out):
 
                 line_out = dict()
                 input = f"{question} \\n {context}"
-                if len(d["answers"]["text"]) == 0:
-                    output = "< Ni odgovora >"
-                else:
-                    output = d["answers"]["text"][0].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")
+
+                # get all unique answers and filter out empty ones
+                answers = list(filter(lambda y: y != "",
+                                    set(map(lambda x: remove_leading_and_trailing_punctuation_and_spaces(
+                                                        x.replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")),
+                                                        d["answers"]["text"]))))
+                if len(answers) == 0:
+                    answers = ["< Ni odgovora >"]
+
+                output = answers[0]
                 line_out["input"] = input
                 line_out["output"] = output
                 line_out["type"] = type
-                if kind == "train" and ind > 100000:
-                    writer_test.writerow(line_out)
+                if kind == "train" and ind >= 115000:
+                    writer_val.writerow(line_out)
+                    writer_val_results.write({"answers": answers})
                 else:
                     writer.writerow(line_out)
+                    writer_results.write({"answers": answers})
 
 
 
