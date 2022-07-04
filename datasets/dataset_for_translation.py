@@ -180,11 +180,11 @@ def get_answer(line, ans):
     elif ans == "D":
         return line[5]
 
-def mctest_split(dir_in, dir_out):
+def mctest_split(dir_in, dir_out, type):
     train = []
     val = []
     test = []
-    with open(f"{dir_in}/MCTest-merged.csv", encoding='UTF8') as f:
+    with open(f"{dir_in}/MCTest-{type}.csv", encoding='UTF8') as f:
         csv_file = csv.reader(f)
         for line in csv_file:
 
@@ -202,7 +202,8 @@ def mctest_split(dir_in, dir_out):
     val_ans = mctest_read_answers(dir_in, "val")
     test_ans = mctest_read_answers(dir_in, "test")
 
-    f_out = open(f"{dir_out}/MCTest/train.csv", 'w', encoding='UTF8', newline='')
+    dataset_name = "MCTest" if type == "merged" else f"MCTest-{type}"
+    f_out = open(f"{dir_out}/{dataset_name}/train.csv", 'w', encoding='UTF8', newline='')
     writer = csv.writer(f_out)
     for line, ans in zip(train, train_ans):
         type = line[-1]
@@ -210,7 +211,7 @@ def mctest_split(dir_in, dir_out):
         line.append(type)
         writer.writerow(line)
 
-    f_out = open(f"{dir_out}/MCTest/val.csv", 'w', encoding='UTF8', newline='')
+    f_out = open(f"{dir_out}/{dataset_name}/val.csv", 'w', encoding='UTF8', newline='')
     writer = csv.writer(f_out)
     for line, ans in zip(val, val_ans):
         type = line[-1]
@@ -218,7 +219,7 @@ def mctest_split(dir_in, dir_out):
         line.append(type)
         writer.writerow(line)
 
-    f_out = open(f"{dir_out}/MCTest/test_answered.csv", 'w', encoding='UTF8', newline='')
+    f_out = open(f"{dir_out}/{dataset_name}/test_answered.csv", 'w', encoding='UTF8', newline='')
     writer = csv.writer(f_out)
     for line, ans in zip(test, test_ans):
         type = line[-1]
@@ -284,7 +285,9 @@ dir_in_split = "../../../Magistrska/Datasets/MT/translationprep"
 dir_out_split = "../../../Magistrska/Datasets/ALL"
 
 # mctest_qa(dir_in_split, dir_in_split)
-mctest_split(dir_in_split, dir_out_split)
+# mctest_split(dir_in_split, dir_out_split, "merged")
+mctest_split(dir_in_split, dir_out_split, "mt")
+mctest_split(dir_in_split, dir_out_split, "deepl")
 # squad2_split(dir_in_split, dir_out_split)
 
 # squad_multiple(dir_in, dir_out)

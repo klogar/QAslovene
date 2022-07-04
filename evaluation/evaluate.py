@@ -66,8 +66,8 @@ def eval_bool(dataset, model):
             if no_ans in prediction.lower():
                 prediction = ""
 
-            em_current = max(compute_exact(a, prediction, nlp=nlp) for a in gold[i])
-            f1_current = max(compute_f1(a, prediction, nlp=nlp) for a in gold[i])
+            em_current = max(compute_exact(a, prediction) for a in gold[i])
+            f1_current = max(compute_f1(a, prediction) for a in gold[i])
 
             exact_match += em_current
             f1 += f1_current
@@ -80,6 +80,7 @@ def eval_bool(dataset, model):
                 if normalize_answer(prediction) not in ["da", "ne"]:
                     print(f"Non yes/no prediction: {prediction}")
                     print(f"Question:  {test_data['input'][i]}")
+                    print(f"Truth: {gold[i]}")
                     total_not_yesno += 1
                 if no_ans in prediction.lower():
                     print(prediction)
@@ -109,6 +110,16 @@ def eval_bool(dataset, model):
 def eval_mc(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
+    test_data = pd.read_csv(test_file)
+    gold_lines = list(test_data["output"])
+    input_lines = list(test_data["input"])
+    type_lines = list(test_data["type"])
+
+    if lemmatized:
+        with jsonlines.open(f"../datasets/encoded/lemmatized-answers/{dataset}-test_answered.jsonl") as reader:
+            lines = [line for line in reader]
+            gold_lines = [line["answers"] for line in lines]
+            input_lines = [line["options"] for line in lines]
 
     dir = f"../models/{model}"
     if checkpoint == "all":
@@ -122,15 +133,12 @@ def eval_mc(dataset, model):
     evals = []
 
     for directory in all_directories:
-        if kind_in_prediction_file:
-            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        if lemmatized:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions_lemmatized.txt"
         else:
-            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
 
-        test_data = pd.read_csv(test_file)
-        gold_lines = list(test_data["output"])
-        input_lines = list(test_data["input"])
-        type_lines = list(test_data["type"])
+
 
         with open(prediction_file) as f:
             predictions = [line.strip() for line in f.readlines()]
@@ -148,12 +156,15 @@ def eval_mc(dataset, model):
         for ind, (prediction, input, gold) in enumerate(zip(predictions, input_lines, gold_lines)):
             if filter_machine_translation and type_lines[ind] == "MT":
                 continue
-            input_split = input.split("\\n")
-            candidates_string = input_split[1].strip()
-            candidates_split = regex.split(candidates_string)
-            candidates_split = [x.strip() for x in candidates_split if len(x.strip()) > 0]
+            if not lemmatized:
+                input_split = input.split("\\n")
+                candidates_string = input_split[1].strip()
+                candidates_split = regex.split(candidates_string)
+                candidates_split = [x.strip() for x in candidates_split if len(x.strip()) > 0]
+            else:
+                candidates_split = input
             # print(f"{prediction} <-> {candidates_split}")
-            scores = [score_string_similarity(x, prediction, nlp=nlp) for x in candidates_split]
+            scores = [score_string_similarity(x, prediction) for x in candidates_split]
             max_idx = np.argmax(scores)
             if max(scores) == 0:
                 accuracy.append(0)
@@ -165,29 +176,29 @@ def eval_mc(dataset, model):
                 selected_ans = candidates_split[max_idx]
 
                 # print((gold, selected_ans), candidates_split)
-                if normalize_answer(selected_ans, nlp=nlp) == normalize_answer(gold, nlp=nlp):
+                if normalize_answer(selected_ans) == normalize_answer(gold):
                     accuracy.append(1)
                     # print(selected_ans, gold)
                 else:
                     accuracy.append(0)
             # exact match
-            em = compute_exact(gold, prediction, nlp=nlp)
+            em = compute_exact(gold, prediction)
             scores_em.append(em)
 
 
-            context = input_split[2]
-            question = input_split[0]
-            if score_string_similarity(context, prediction) > max(scores):
-                similar_to_context += 1
-            if score_string_similarity(question, prediction) > max(scores):
-                similar_to_quesiton += 1
+            # context = input_split[2]
+            # question = input_split[0]
+            # if score_string_similarity(context, prediction) > max(scores):
+            #     similar_to_context += 1
+            # if score_string_similarity(question, prediction) > max(scores):
+            #     similar_to_quesiton += 1
                 # print(f"{accuracy[-1]} <-> {prediction} <-> {gold} <-> {candidates_split} <-> {context}")
 
             if no_ans in prediction.lower():
                 total_no_ans += 1
 
-        print(f"similar to question {similar_to_quesiton/len(accuracy)}")
-        print(f"similar to context {similar_to_context/len(accuracy)}")
+        # print(f"similar to question {similar_to_quesiton/len(accuracy)}")
+        # print(f"similar to context {similar_to_context/len(accuracy)}")
         print(f"completely wrong {completely_wrong/len(accuracy)}")
         print(f"predicted no answer {total_no_ans/len(accuracy)}")
 
@@ -204,9 +215,14 @@ def eval_mc(dataset, model):
 
 def eval_multirc(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
-    with jsonlines.open(f"./../datasets/encoded/answers/MultiRC-{kind}.jsonl") as reader:
-        golds = [line["answers"] for line in reader]
+    if lemmatized:
+        reader = jsonlines.open(f"./../datasets/encoded/lemmatized-answers/MultiRC-{kind}.jsonl")
+    else:
+        reader = jsonlines.open(f"./../datasets/encoded/answers/MultiRC-{kind}.jsonl")
+    golds = [line["answers"] for line in reader]
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
+    test_data = pd.read_csv(test_file)
+    type_lines = list(test_data["type"])
 
     dir = f"../models/{model}"
     if checkpoint == "all":
@@ -220,16 +236,15 @@ def eval_multirc(dataset, model):
     evals = []
 
     for directory in all_directories:
-        if kind_in_prediction_file:
-            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        if lemmatized:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions_lemmatized.txt"
         else:
-            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
 
         with open(prediction_file) as f:
             predictions = [line.strip() for line in f.readlines()]
 
-        test_data = pd.read_csv(test_file)
-        type_lines = list(test_data["type"])
+
 
         scores = []
         scores_em = []
@@ -245,12 +260,12 @@ def eval_multirc(dataset, model):
                 continue # skip no answer questions
             if filter_machine_translation and type_lines[ind] == "MT":
                 continue
-            rouge_l_score = metric_max_over_ground_truths(rouge_l, pred, gold, nlp=nlp)
+            rouge_l_score = metric_max_over_ground_truths(rouge_l, pred, gold)
             scores.append(rouge_l_score["rouge-l"]["f"])
             normalized_gold = list(map(normalize_answer, gold))
 
-            em_current = max(compute_exact(a, pred, nlp=nlp) for a in gold)
-            f1_current = max(compute_f1(a, pred, nlp=nlp) for a in gold)
+            em_current = max(compute_exact(a, pred) for a in gold)
+            f1_current = max(compute_f1(a, pred) for a in gold)
             scores_em.append(em_current)
             scores_f1.append(f1_current)
 
@@ -298,9 +313,14 @@ def eval_multirc(dataset, model):
 
 def eval_squad2(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
-    with jsonlines.open(f"./../datasets/encoded/answers/SQUAD2-project-{kind}.jsonl") as reader:
-        gold = [line["answers"] for line in reader]
+    if lemmatized:
+        reader = jsonlines.open(f"./../datasets/encoded/lemmatized-answers/SQUAD2-project-{kind}.jsonl")
+    else:
+        reader = jsonlines.open(f"./../datasets/encoded/answers/SQUAD2-project-{kind}.jsonl")
+    golds = [line["answers"] for line in reader]
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
+    test_data = pd.read_csv(test_file)
+    type_lines = list(test_data["type"])
 
     dir = f"../models/{model}"
     if checkpoint == "all":
@@ -314,17 +334,14 @@ def eval_squad2(dataset, model):
     evals = []
 
     for directory in all_directories:
-        if kind_in_prediction_file:
-            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
+        if lemmatized:
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions_lemmatized.txt"
         else:
-            prediction_file = f"{directory}/{dataset}_generated_predictions.txt"
+            prediction_file = f"{directory}/{dataset}_{kind}_generated_predictions.txt"
         with open(prediction_file) as f:
             predictions = [line.strip() for line in f.readlines()]
 
-        assert len(gold) == len(predictions), f" {len(predictions)}  / {len(gold)} "
-
-        test_data = pd.read_csv(test_file)
-        type_lines = list(test_data["type"])
+        assert len(golds) == len(predictions), f" {len(predictions)}  / {len(golds)} "
 
         f1 = exact_match = total = 0
         f1_with_ans = exact_match_with_ans = total_with_ans = 0
@@ -336,10 +353,10 @@ def eval_squad2(dataset, model):
                 continue
             # For unanswerable questions, only correct answer is empty string
             is_unanswerable = False
-            for g in gold[i]:
+            for g in golds[i]:
                 if no_ans in g.lower():
                     # print(gold[i])
-                    gold[i] = [""]
+                    golds[i] = [""]
                     is_unanswerable = True
                     break
                 if g == "": # when we already converted <ni odgovora> into empty string
@@ -350,8 +367,8 @@ def eval_squad2(dataset, model):
 
             if filter_no_answer and is_unanswerable:
                 continue # skip <no answer> question
-            em_current = max(compute_exact(a, prediction, nlp=nlp) for a in gold[i])
-            f1_current = max(compute_f1(a, prediction, nlp=nlp) for a in gold[i])
+            em_current = max(compute_exact(a, prediction) for a in golds[i])
+            f1_current = max(compute_f1(a, prediction) for a in golds[i])
 
             exact_match += em_current
             f1 += f1_current
@@ -366,7 +383,7 @@ def eval_squad2(dataset, model):
                 f1_with_ans += f1_current
                 total_with_ans += 1
 
-            if prediction == "" and "" not in gold[i]:
+            if prediction == "" and "" not in golds[i]:
                 total_no_ans += 1
 
             # Print some answers and wrong predictions
@@ -375,7 +392,7 @@ def eval_squad2(dataset, model):
             #     print(f"True: {gold[i]}")
 
             # Also calculate rouge L
-            rouge_l_score = metric_max_over_ground_truths(rouge_l, prediction, gold[i], nlp=nlp)
+            rouge_l_score = metric_max_over_ground_truths(rouge_l, prediction, golds[i])
             scores.append(rouge_l_score["rouge-l"]["f"])
 
         exact_match = round(exact_match / total, 3)
@@ -449,26 +466,30 @@ def get_best_epoch(evaluation):
                 average_evals[ind] += eval["f1"]
     average_evals = [evals / len(evaluation.items()) for evals in average_evals]
     # print(average_evals)
-    return average_evals.index(max(average_evals)), max(average_evals)
+    return average_evals.index(max(average_evals)), round(max(average_evals), 3)
 
-no_ans = "< ni odgovora >"
-model = "without-COPA-all"
+
+model = "unified-lower-based"
 verbose = True
 lemmatized = False
 if lemmatized:
-    classla.download("sl")
-    nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
+    no_ans = "< biti odgovor >"
 else:
-    nlp = None
-checkpoint = "all" # specific checkpoint, "all" or None
-kind = "val"
+    no_ans = "< ni odgovora >"
+# if lemmatized:
+#     classla.download("sl")
+#     nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
+# else:
+#     nlp = None
+checkpoint = "147870" # specific checkpoint, "all" or None
+kind = "test_answered"
 kind_in_prediction_file = True
 filter_no_answer = False
 filter_machine_translation = False
 
 evaluation = dict()
 evaluation["BoolQ"] = eval_bool("BoolQ", model)
-# evaluation["COPA"] = eval_mc("COPA", model)
+evaluation["COPA"] = eval_mc("COPA", model)
 evaluation["MCTest"] = eval_mc("MCTest", model)
 evaluation["MultiRC"] = eval_multirc("MultiRC", model)
 evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
@@ -488,9 +509,9 @@ if checkpoint is not None:
     for dataset, evals in evaluation.items():
         print(f"*** {dataset} *** -> {evals[best_epoch]}")
 
-    plot_checkpoints(evaluation)
-    plot_squad2(evaluation)
-    plot_multirc(evaluation)
+    # plot_checkpoints(evaluation)
+    # plot_squad2(evaluation)
+    # plot_multirc(evaluation)
 
 
 

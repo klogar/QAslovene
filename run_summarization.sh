@@ -9,8 +9,10 @@ GRADIENT_ACCUMULATION=1
 
 for i in 0 0
 do
-OUTPUT_DIR="/home/katjal/QAslovene/models/without-MultiRC-all"
-MODEL_NAME_OR_PATH=${MODEL_PATHS[$i]}
+OUTPUT_DIR="/home/katjal/QAslovene/models/unified-without-noanswer-based"
+#MODEL_NAME_OR_PATH=${MODEL_PATHS[$i]}
+#MODEL_NAME_OR_PATH="google/mt5-small"
+MODEL_NAME_OR_PATH="models/unified-without-noanswer-all/checkpoint-259279"
 CUDA_VISIBLE_DEVICES=0 python run_summarization.py\
  --model_name_or_path $MODEL_NAME_OR_PATH \
  --no_use_fast_tokenizer \
@@ -26,10 +28,9 @@ CUDA_VISIBLE_DEVICES=0 python run_summarization.py\
  --save_strategy epoch \
  --seed 42 \
  --gradient_accumulation_steps $GRADIENT_ACCUMULATION \
- --datasets "SQUAD2-project,BoolQ,COPA,MCTest" \
+ --datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC" \
  --datasets_path "/home/katjal/QAslovene/datasets/encoded/" \
- --num_beams=4 \
- --lowercase=True
+ --num_beams=4
 
 done
 
@@ -44,3 +45,5 @@ done
 #--save_total_limit=1 \
 #  --filter_no_answer=True
 #--datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC" \
+#--datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC,SQUAD2-eng,BoolQ-eng,COPA-eng,MCTest-eng,MultiRC-eng" \
+#--lowercase=True

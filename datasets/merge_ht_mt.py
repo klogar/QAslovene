@@ -70,6 +70,29 @@ def merge(datasets, kinds, dir):
                 for line in data:
                     writer.write(line)
 
+# create datasets with same examples for human and machine translation
+def create_ht_mt(datasets, kinds, dir):
+    for dataset in datasets:
+        for kind in kinds:
+            data_ht = []
+            with jsonlines.open(f"{dir}/HT/{dataset}/{kind}.jsonl") as reader:
+                for line in reader:
+                    line["type"] = "HT"
+                    data_ht.append(line)
+            data_mt = []
+            # Only add those machine translated lines that are in human translated lines
+            with jsonlines.open(f"{dir}/MT/{dataset}/{kind}.jsonl") as reader:
+                for line in reader:
+                    if find_property_with_value(data_ht, "idx", line["idx"]):
+                        line["type"] = "MT"
+                        data_mt.append(line)
+            with jsonlines.open(f"{dir}/ALL/{dataset}-ht/{kind}.jsonl", mode="w") as writer:
+                for line in data_ht:
+                    writer.write(line)
+            with jsonlines.open(f"{dir}/ALL/{dataset}-mt/{kind}.jsonl", mode="w") as writer:
+                for line in data_mt:
+                    writer.write(line)
+
 def merge_mctest_deepl(dir_in):
     data_deepl = []
     with open(f"{dir_in}/MCTest-deepl.csv", encoding='UTF8') as f:
@@ -90,6 +113,29 @@ def merge_mctest_deepl(dir_in):
     f_out = open(f"{dir_in}/MCTest-merged.csv", 'w', encoding='UTF8', newline='')
     writerc = csv.writer(f_out)
     writerc.writerows(data)
+
+# create the mctest datasets with same examples with deepl translation and machine translation
+def create_deepl_mt(dir_in):
+    data_deepl = []
+    with open(f"{dir_in}/MCTest-deepl.csv", encoding='UTF8') as f:
+        csv_file = csv.reader(f)
+        for line in csv_file:
+            line.append("DEEPL")
+            data_deepl.append(line)
+    data_mt = []
+    # Only add those machine translated lines that are  in deepl translated lines
+    with open(f"{dir_in}/MCTest-sl.csv", encoding='UTF8') as f:
+        csv_file = csv.reader(f)
+        for line in csv_file:
+            if find_id_csv(data_deepl, line[0]):
+                line.append("MT")
+                data_mt.append(line)
+
+    # Only save machine translated examples, data_deepl hasn't changed and is still available in MCTest-deepl.csv
+    f_out = open(f"{dir_in}/MCTest-mt.csv", 'w', encoding='UTF8', newline='')
+    data_mt.sort(key=lambda k: (k[0][3:5], int(k[0][:3]), int(k[0][5:])))  # sort it the same as previously (kind (train, test, dev), 150/160, id)
+    writerc = csv.writer(f_out)
+    writerc.writerows(data_mt)
 
 def merge_squad_deepl(dir_in):
     kinds = ["train", "val"]
@@ -187,7 +233,10 @@ dir = "../../../Magistrska/Datasets"
 # merge_squad_deepl("../../../Magistrska/Datasets/MT/translationprep")
 
 # add_answers_boolq_test(dir) # ni več teh datotek
-add_answers_multirc_test(dir)
+# add_answers_multirc_test(dir)
+
+create_ht_mt(["BoolQ", "MultiRC"], kinds, dir)
+create_deepl_mt("../../../Magistrska/Datasets/MT/translationprep")
 
 get_statistics(dir, datasets, kinds)
 get_statistics_table(dir, datasets, kinds)

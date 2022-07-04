@@ -2,13 +2,13 @@ MAX_SOURCE_LENGTH=512
 MAX_TARGET_LENGTH=100
 PER_DEVICE_EVAL_BATCH_SIZE=8
 
-MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/munified-eng-slo"
+MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/without-BoolQ-all-upper"
 OUTPUT_DIR=$MODEL_NAME_OR_PATH
 CHECKPOINTS=($( ls -d ${MODEL_NAME_OR_PATH}/checkpoint* ))
 for checkpoint in "${CHECKPOINTS[@]}"
 do
   echo "$checkpoint"
-  CUDA_VISIBLE_DEVICES=1 python run_summarization.py\
+  CUDA_VISIBLE_DEVICES=0 python run_summarization.py\
    --model_name_or_path $checkpoint \
    --no_use_fast_tokenizer \
    --test_file "val.csv" \

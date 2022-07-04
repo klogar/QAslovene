@@ -2,7 +2,7 @@ MAX_SOURCE_LENGTH=512
 MAX_TARGET_LENGTH=100
 PER_DEVICE_EVAL_BATCH_SIZE=8
 
-MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/without-BoolQ-all/checkpoint-213528"
+MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/munified-engall-slo/checkpoint-345030"
 OUTPUT_DIR=$MODEL_NAME_OR_PATH
 CUDA_VISIBLE_DEVICES=1 python run_summarization.py\
  --model_name_or_path $MODEL_NAME_OR_PATH \

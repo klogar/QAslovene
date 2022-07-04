@@ -35,15 +35,15 @@ def boolq(dir_in, dir_out):
                     line_out["output"] = answer
                 writer.write(line_out)
 
-def boolq_csv(dir_in, dir_out):
-    d = f"{dir_in}/BoolQ"
+def boolq_csv(dir_in, dir_out, dataset):
+    d = f"{dir_in}/{dataset}"
     onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.jsonl"]
     for file in onlyfiles:
         kind = file.split(".")[0]
-        f = open(f"{dir_out}/BoolQ/{kind}.csv", 'w', encoding='UTF8', newline='')
+        f = open(f"{dir_out}/{dataset}/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        with jsonlines.open(f"{dir_in}/BoolQ/{kind}.jsonl") as reader:
+        with jsonlines.open(f"{dir_in}/{dataset}/{kind}.jsonl") as reader:
             for line in reader:
                 line_out = dict()
                 question = line["question"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
@@ -78,17 +78,17 @@ def multirc(dir_in, dir_out):
                                 break
                     writer.write(line_out)
 
-def multirc_csv(dir_in, dir_out):
-    d = f"{dir_in}/MultiRC"
+def multirc_csv(dir_in, dir_out, dataset):
+    d = f"{dir_in}/{dataset}"
     onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.jsonl"]
     for file in onlyfiles:
         kind = file.split(".")[0]
-        f = open(f"{dir_out}/MultiRC/{kind}.csv", 'w', encoding='UTF8', newline='')
+        f = open(f"{dir_out}/{dataset}/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
-        writer_answers = jsonlines.open(f"{dir_out}/answers/MultiRC-{kind}.jsonl", mode="w")
-        with jsonlines.open(f"{dir_in}/MultiRC/{kind}.jsonl") as reader:
+        writer_answers = jsonlines.open(f"{dir_out}/answers/{dataset}-{kind}.jsonl", mode="w")
+        with jsonlines.open(f"{dir_in}/{dataset}/{kind}.jsonl") as reader:
             for line in reader:
                 paragraph = line["passage"]["text"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ")
                 for q in line["passage"]["questions"]:
@@ -159,15 +159,15 @@ def remove_repeating_words(str):
         return str_split[0]
     return str
 
-def mctest_csv(dir_in, dir_out):
-    d = f"{dir_in}/MCTest"
+def mctest_csv(dir_in, dir_out, dataset):
+    d = f"{dir_in}/{dataset}"
     onlyfiles = [f for f in listdir(d) if isfile(join(d, f)) if f != "test.csv"]
     for file in onlyfiles:
         kind = file.split(".")[0]
-        f = open(f"{dir_out}/MCTest/{kind}.csv", 'w', encoding='UTF8', newline='')
+        f = open(f"{dir_out}/{dataset}/{kind}.csv", 'w', encoding='UTF8', newline='')
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        with open(f"{dir_in}/MCTest/{kind}.csv", encoding='UTF8') as f:
+        with open(f"{dir_in}/{dataset}/{kind}.csv", encoding='UTF8') as f:
             reader = csv.reader(f)
             for line in reader:
                 question = line[1].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace("(angleščina)", "").replace("..", "")
@@ -400,20 +400,64 @@ def squad2_project_csv(dir_in, dir_out):
                     writer.writerow(line_out)
                     writer_results.write({"answers": answers})
 
+def squad2_project_ht_mt(dir_in, dir_out):
+    types = ["ht", "mt"]
+    for type in types:
+        with open(f"{dir_in}/SQUAD2-project/{type}.json", encoding='UTF8') as f:
+            data = json.load(f)["data"]
+
+
+        f = open(f"{dir_out}/SQUAD2-project-{type}/test_answered.csv", mode="w", encoding='UTF8', newline='')
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer_results = jsonlines.open(f"{dir_out}/answers/SQUAD2-project-{type}-test_answered.jsonl", mode="w")
+
+        for ind, d in enumerate(data):
+
+            context = d["context"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")
+            question = d["question"].replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")
+
+            line_out = dict()
+            input = f"{question} \\n {context}"
+
+            # get all unique answers and filter out empty ones
+            answers = list(filter(lambda y: y != "",
+                                set(map(lambda x: remove_leading_and_trailing_punctuation_and_spaces(
+                                                    x.replace("\t", "").replace("   ", " ").replace("  ", " ").replace("\n", " ").replace(" ", "")),
+                                                    d["answers"]["text"]))))
+            if len(answers) == 0:
+                answers = ["< Ni odgovora >"]
+
+            output = answers[0]
+            line_out["input"] = input
+            line_out["output"] = output
+            line_out["type"] = type.upper()
+
+            writer.writerow(line_out)
+            writer_results.write({"answers": answers})
+
 
 
 
 dir_in = "../../../Magistrska/Datasets/ALL"
 dir_out = "encoded"
-# boolq_csv(dir_in, dir_out)
-# multirc_csv(dir_in, dir_out)
+# boolq_csv(dir_in, dir_out, "BoolQ")
+# multirc_csv(dir_in, dir_out, "MultiRC")
 # multirc_bin_csv(dir_in, dir_out)
-# mctest_csv(dir_in, dir_out)
+# mctest_csv(dir_in, dir_out, "MCTest")
 # squad2_csv(dir_in, dir_out)
-squad2_project_csv(dir_in, dir_out)
+# squad2_project_csv(dir_in, dir_out)
 # copa_csv(dir_in, dir_out)
 
 # squad_substring(dir_out)
 # get_length(dir_out)
 # get_statistics(dir_out)
 # get_absolute_statistics_table(dir_out)
+
+squad2_project_ht_mt(dir_in, dir_out)
+mctest_csv(dir_in, dir_out, "MCTest-deepl")
+mctest_csv(dir_in, dir_out, "MCTest-mt")
+boolq_csv(dir_in, dir_out, "BoolQ-ht")
+boolq_csv(dir_in, dir_out, "BoolQ-mt")
+multirc_csv(dir_in, dir_out, "MultiRC-ht")
+multirc_csv(dir_in, dir_out, "MultiRC-mt")
