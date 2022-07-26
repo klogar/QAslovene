@@ -5,12 +5,19 @@ import re
 from os import listdir
 from os.path import isfile, join
 from collections import defaultdict
-from my_utils import read_csv
 import string
 
 fieldnames = ["input", "output", "type"]
 kinds = ["train", "val", "test"]
 
+def read_csv(path):
+    lines = []
+    with open(path, encoding='UTF8') as f:
+        reader = csv.reader(f)
+        next(reader, None)  # skip header
+        l = [line for line in reader]
+        lines += l
+    return lines
 
 def remove_punc(text):
     exclude = set(string.punctuation)
@@ -442,7 +449,7 @@ def squad2_project_ht_mt(dir_in, dir_out):
 dir_in = "../../../Magistrska/Datasets/ALL"
 dir_out = "encoded"
 # boolq_csv(dir_in, dir_out, "BoolQ")
-# multirc_csv(dir_in, dir_out, "MultiRC")
+multirc_csv(dir_in, dir_out, "MultiRC")
 # multirc_bin_csv(dir_in, dir_out)
 # mctest_csv(dir_in, dir_out, "MCTest")
 # squad2_csv(dir_in, dir_out)
@@ -454,10 +461,10 @@ dir_out = "encoded"
 # get_statistics(dir_out)
 # get_absolute_statistics_table(dir_out)
 
-squad2_project_ht_mt(dir_in, dir_out)
+# squad2_project_ht_mt(dir_in, dir_out)
 mctest_csv(dir_in, dir_out, "MCTest-deepl")
 mctest_csv(dir_in, dir_out, "MCTest-mt")
-boolq_csv(dir_in, dir_out, "BoolQ-ht")
-boolq_csv(dir_in, dir_out, "BoolQ-mt")
-multirc_csv(dir_in, dir_out, "MultiRC-ht")
-multirc_csv(dir_in, dir_out, "MultiRC-mt")
+# boolq_csv(dir_in, dir_out, "BoolQ-ht")
+# boolq_csv(dir_in, dir_out, "BoolQ-mt")
+# multirc_csv(dir_in, dir_out, "MultiRC-ht")
+# multirc_csv(dir_in, dir_out, "MultiRC-mt")

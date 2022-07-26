@@ -165,17 +165,22 @@ def merge_squad_deepl(dir_in):
         writerc = csv.writer(f_out)
         writerc.writerows(data)
 
+def get_label(id, answers):
+    for answer in answers:
+        if id == answer["idx"]:
+            return answer["label"]
+    raise "Cannot find matching ids"
 
 def add_answers_multirc_test(dir):
-    f1 = open(f"{dir}/MT/MultiRC/testprep/test1.json") # previously test_1_83-fixedIds.json
+    f1 = open(f"{dir}/MT/MultiRC/testprep/test1.json")  # previously test_1_83-fixedIds.json
     data1 = json.load(f1)["data"]
 
-    f2 = open(f"{dir}/MT/MultiRC/testprep/test2.json") # previous test_2_83-fixedIds.json
+    f2 = open(f"{dir}/MT/MultiRC/testprep/test2.json")  # previous test_2_83-fixedIds.json
     data2 = json.load(f2)["data"]
 
     lines = []
 
-    with jsonlines.open(f"{dir}/MT/MultiRC/testprep/test.jsonl") as reader: # English test.jsonl
+    with jsonlines.open(f"{dir}/MT/MultiRC/testprep/test.jsonl") as reader:  # English test.jsonl
         for ind, line in enumerate(reader):
             questions = line["passage"]["questions"]
             for question in questions:
@@ -190,19 +195,19 @@ def add_answers_multirc_test(dir):
                                             answer["label"] = 1 if ans["isAnswer"] else 0
 
             lines.append(line)
-    writer_eng = jsonlines.open(f"{dir}/MT/MultiRC/testprep/test_answered.jsonl", mode="w") # English test_answered.jsonl
-    writer_eng.write_all(lines)
-    writer = jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl", mode="w") # Slovene test_answered.jsonl
-    with jsonlines.open(f"{dir}/MT/MultiRC/test.jsonl") as reader: # Slovene test.jsonl
+
+    writer = jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl", mode="w")  # Slovene test_answered.jsonl
+    with jsonlines.open(f"{dir}/MT/MultiRC/test.jsonl") as reader:  # Slovene test.jsonl
         for ind, l in enumerate(reader):
             for ind2, question in enumerate(l["passage"]["questions"]):
                 for ind3, ans in enumerate(question["answers"]):
-                    try:
-                        ans["label"] = lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["label"]
-                    except:
-                        # This happens in case some answers were not matched and miss label
-                        print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["question"]))
-                        print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["text"]))
+                    # try:
+                    answers = lines[ind]["passage"]["questions"][ind2]["answers"]
+                    ans["label"] = get_label(ans["idx"], answers)
+                # except:
+                #     # This happens in case some answers were not matched and miss label
+                #     print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["question"]))
+                #     print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["text"]))
             writer.write(l)
 
 
@@ -228,14 +233,14 @@ datasets = ["BoolQ", "MultiRC", "COPA"]
 kinds = ["train", "val",  "test_answered"]
 dir = "../../../Magistrska/Datasets"
 
-# merge(datasets, kinds, dir)
+merge(datasets, kinds, dir)
 # merge_mctest_deepl("../../../Magistrska/Datasets/MT/translationprep")
 # merge_squad_deepl("../../../Magistrska/Datasets/MT/translationprep")
 
 # add_answers_boolq_test(dir) # ni več teh datotek
 # add_answers_multirc_test(dir)
 
-create_ht_mt(["BoolQ", "MultiRC"], kinds, dir)
+# create_ht_mt(["BoolQ", "MultiRC"], kinds, dir)
 create_deepl_mt("../../../Magistrska/Datasets/MT/translationprep")
 
 get_statistics(dir, datasets, kinds)

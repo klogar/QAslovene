@@ -163,14 +163,19 @@ def mctest_qa(dir_in, dir_out):
 def mctest_read_answers(dir_in, kind):
     sizes = [160, 500]
     all_answers = []
+    if kind == "val":
+        k = "de"
+    else:
+        k = kind[:2]
     for size in sizes:
         path = f"{dir_in}/mc{size}.{kind}.ans"
         with open(path.replace(".tsv", ".ans")) as f:
-            for l in f.readlines():
-                all_answers.extend(l.replace("\n", "").split("\t"))
+            for ind, l in enumerate(f.readlines()):
+                answers = list(map(lambda x: (f"{size}{k}{ind}", x[0], x[1]), enumerate(l.replace("\n", "").split("\t"))))
+                all_answers.extend(answers)
     return all_answers
 
-def get_answer(line, ans):
+def get_answer_by_char(line, ans):
     if ans == "A":
         return line[2]
     elif ans == "B":
@@ -179,6 +184,13 @@ def get_answer(line, ans):
         return line[4]
     elif ans == "D":
         return line[5]
+
+def get_answer(line, answers):
+    story_id = line[0]
+    question_id = line[1]
+    for sid, qid, answer in answers:
+        if story_id == sid and question_id == qid:
+            return get_answer_by_char(line[2:], answer)
 
 def mctest_split(dir_in, dir_out, type):
     train = []
@@ -195,37 +207,41 @@ def mctest_split(dir_in, dir_out, type):
             elif "te" in line[0]:
                 dataset = test
 
+            i = 0
             for ind in range(2, 22, 5):
-                dataset.append([line[1],line[ind],line[ind+1],line[ind+2],line[ind+3],line[ind+4], line[-1]])
+                dataset.append([line[0],i,line[1],line[ind],line[ind+1],line[ind+2],line[ind+3],line[ind+4], line[-1]])
+                i += 1
 
     train_ans = mctest_read_answers(dir_in, "train")
     val_ans = mctest_read_answers(dir_in, "val")
     test_ans = mctest_read_answers(dir_in, "test")
 
+    # assert len(train) == len(train_ans), "Length of dataset and answers is not the same"
+
     dataset_name = "MCTest" if type == "merged" else f"MCTest-{type}"
     f_out = open(f"{dir_out}/{dataset_name}/train.csv", 'w', encoding='UTF8', newline='')
     writer = csv.writer(f_out)
-    for line, ans in zip(train, train_ans):
+    for line in train:
         type = line[-1]
-        line[-1] = get_answer(line,ans)
+        line[-1] = get_answer(line,train_ans)
         line.append(type)
-        writer.writerow(line)
+        writer.writerow(line[2:])
 
     f_out = open(f"{dir_out}/{dataset_name}/val.csv", 'w', encoding='UTF8', newline='')
     writer = csv.writer(f_out)
-    for line, ans in zip(val, val_ans):
+    for line in val:
         type = line[-1]
-        line[-1] = get_answer(line, ans)
+        line[-1] = get_answer(line, val_ans)
         line.append(type)
-        writer.writerow(line)
+        writer.writerow(line[2:])
 
     f_out = open(f"{dir_out}/{dataset_name}/test_answered.csv", 'w', encoding='UTF8', newline='')
     writer = csv.writer(f_out)
-    for line, ans in zip(test, test_ans):
+    for line in test:
         type = line[-1]
-        line[-1] = get_answer(line, ans)
+        line[-1] = get_answer(line, test_ans)
         line.append(type)
-        writer.writerow(line)
+        writer.writerow(line[2:])
 
 def squad2_context_to_qa(contexts, qa):
     lines = []
@@ -266,8 +282,10 @@ def squad2_split(dir_in, dir_out):
             for line in squad2_context_to_qa(contexts, qa):
                 writer.writerow(line)
 
-
-
+def character_count(dir_in, filename):
+    with open(f"{dir_in}/{filename}") as f:
+        lines = [line.strip() for line in f.readlines()]
+        print(f"Character count: {sum(list(map(lambda x: len(x), lines)))}")
 
 
 dir_in = "../../../Magistrska/Datasets/English/original"
@@ -291,3 +309,5 @@ mctest_split(dir_in_split, dir_out_split, "deepl")
 # squad2_split(dir_in_split, dir_out_split)
 
 # squad_multiple(dir_in, dir_out)
+
+# character_count(dir_in_split, "MCTest.csv")

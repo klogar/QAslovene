@@ -1,12 +1,3 @@
-# read lines and calculate F1/EM
-import collections
-import string
-import re
-import argparse
-import json
-import sys
-
-from collections import Counter
 from os import listdir
 from os.path import isfile, join, exists, isdir
 import pandas as pd
@@ -61,7 +52,7 @@ def eval_bool(dataset, model):
                     gold[i] = [""]
                     is_unanswerable = True
                     break
-                if g == "": # when we already converted <ni odgovora> into empty string
+                if g == "": # when we already converted <no answer> into empty string
                     is_unanswerable = True
             if no_ans in prediction.lower():
                 prediction = ""

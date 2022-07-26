@@ -1,7 +1,7 @@
 import deepl
 import csv
 
-auth_key = "d1e82830-9e41-0939-b652-11e97b32e6ac:fx"  # Replace with your key
+auth_key = ""  # Replace with your key
 
 def translate_deepl_mctest(texts, ids):
     # Create a Translator object providing your DeepL API authentication key.
@@ -59,11 +59,11 @@ def read_dataset(filename):
     def concat_text(line):
         return " | ".join(line[1:])
 
-    ids = list(map(lambda x: x[0], dataset))[:700]
-    dataset = list(map(concat_text, dataset[:700]))
+    ids = list(map(lambda x: x[0], dataset))[560:]
+    dataset = list(map(concat_text, dataset[560:]))
     return dataset, ids
 
-# mctest = read_dataset("../../../Magistrska/Datasets/English/translationprep/MCTest.csv")
+mctest = read_dataset("../../../Magistrska/Datasets/English/translationprep/MCTest.csv")
 # translate_deepl_mctest(*mctest)
 # squad = read_dataset("../../../Magistrska/Datasets/English/translationprep/Squad-train-qa.csv")
 # translate_deepl_squad(*squad, "train-qa")
@@ -93,6 +93,6 @@ def compare_translations_squad(deepl_file, my_file):
         print(f"DEEPL: {d}")
         print(f"MY: {m}")
 
-compare_translations_mctest("../../../Magistrska/Datasets/English/translationprep/MCTest-deepl.csv", "../../../Magistrska/Datasets/MT/translationprep/MCTest-sl.csv")
+# compare_translations_mctest("../../../Magistrska/Datasets/English/translationprep/MCTest-deepl.csv", "../../../Magistrska/Datasets/MT/translationprep/MCTest-sl.csv")
 # compare_translations_squad("../../../Magistrska/Datasets/English/translationprep/Squad-deepl-train-qa.csv", "../../../Magistrska/Datasets/MT/translationprep/Squad-train-qa-sl.csv")
 

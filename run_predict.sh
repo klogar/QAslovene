@@ -2,9 +2,9 @@ MAX_SOURCE_LENGTH=512
 MAX_TARGET_LENGTH=100
 PER_DEVICE_EVAL_BATCH_SIZE=8
 
-MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/munified-engall-slo/checkpoint-345030"
+MODEL_NAME_OR_PATH="/home/katjal/QAslovene/models/unified-without-noanswer-based/checkpoint-345030"
 OUTPUT_DIR=$MODEL_NAME_OR_PATH
-CUDA_VISIBLE_DEVICES=1 python run_summarization.py\
+CUDA_VISIBLE_DEVICES=0 python run_summarization.py\
  --model_name_or_path $MODEL_NAME_OR_PATH \
  --no_use_fast_tokenizer \
  --test_file "test_answered.csv" \
@@ -24,5 +24,7 @@ CUDA_VISIBLE_DEVICES=1 python run_summarization.py\
  --num_beams=4 \
  --per_device_eval_batch_size $PER_DEVICE_EVAL_BATCH_SIZE
 
+#--datasets "SQUAD2-project,BoolQ,COPA,MCTest,MultiRC" \
+#--datasets "SQUAD2-project-ht,BoolQ-ht,MCTest-deepl,MultiRC-ht,SQUAD2-project-mt,BoolQ-mt,MCTest-mt,MultiRC-mt" \
 
 

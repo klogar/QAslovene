@@ -1,12 +1,6 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoConfig, Seq2SeqTrainer
 import pandas as pd
-import torch
-import numpy as np
 import datasets
-from transformers import pipeline
-from transformers.pipelines.pt_utils import KeyDataset
-from tqdm.auto import tqdm
-import logging
 
 def generate(model):
     model_name_or_path = f"./models/{model}/"
@@ -27,7 +21,6 @@ def generate(model):
             writer.write("\n".join(predictions_text))
 
 datasets = ["BoolQ", "COPA", "MCTest", "MultiRC", "SQUAD2"]
-# datasets = ["MultiRC"]
 lowercase = False
 input_column = "input"
 output_column = "output"

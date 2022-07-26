@@ -64,10 +64,10 @@ def lemmatize_test_answered(dataset):
 classla.download("sl")
 nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
 
-# lemmatize_answers_jsonl("MultiRC")
+lemmatize_answers_jsonl("MultiRC")
 # lemmatize_answers_jsonl("SQUAD2-project")
 # lemmatize_test_answered("BoolQ")
 # lemmatize_mc("COPA")
 # lemmatize_mc("MCTest")
-lemmatize_predictions("../models/unified-lower-all/checkpoint-361460")
+# lemmatize_predictions("../models/unified-lower-all/checkpoint-361460")
 

@@ -1,11 +1,3 @@
-# read lines and calculate F1/EM
-import collections
-import string
-import re
-import argparse
-import json
-import sys
-
 from collections import Counter
 from os import listdir
 from os.path import isfile, join, exists, isdir
@@ -216,9 +208,9 @@ def eval_mc(dataset, model):
 def eval_multirc(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
     if lemmatized:
-        reader = jsonlines.open(f"./../datasets/encoded/lemmatized-answers/MultiRC-{kind}.jsonl")
+        reader = jsonlines.open(f"./../datasets/encoded/lemmatized-answers/{dataset}-{kind}.jsonl")
     else:
-        reader = jsonlines.open(f"./../datasets/encoded/answers/MultiRC-{kind}.jsonl")
+        reader = jsonlines.open(f"./../datasets/encoded/answers/{dataset}-{kind}.jsonl")
     golds = [line["answers"] for line in reader]
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
     test_data = pd.read_csv(test_file)
@@ -244,6 +236,7 @@ def eval_multirc(dataset, model):
         with open(prediction_file) as f:
             predictions = [line.strip() for line in f.readlines()]
 
+        assert len(golds) == len(predictions), f" {len(predictions)}  / {len(golds)} "
 
 
         scores = []
@@ -314,9 +307,9 @@ def eval_multirc(dataset, model):
 def eval_squad2(dataset, model):
     print(f"--------------------------{dataset}--------------------------------")
     if lemmatized:
-        reader = jsonlines.open(f"./../datasets/encoded/lemmatized-answers/SQUAD2-project-{kind}.jsonl")
+        reader = jsonlines.open(f"./../datasets/encoded/lemmatized-answers/{dataset}-{kind}.jsonl")
     else:
-        reader = jsonlines.open(f"./../datasets/encoded/answers/SQUAD2-project-{kind}.jsonl")
+        reader = jsonlines.open(f"./../datasets/encoded/answers/{dataset}-{kind}.jsonl")
     golds = [line["answers"] for line in reader]
     test_file = f"../datasets/encoded/{dataset}/{kind}.csv"
     test_data = pd.read_csv(test_file)
@@ -469,7 +462,7 @@ def get_best_epoch(evaluation):
     return average_evals.index(max(average_evals)), round(max(average_evals), 3)
 
 
-model = "unified-lower-based"
+model = "munified-engall-slo"
 verbose = True
 lemmatized = False
 if lemmatized:
@@ -481,18 +474,18 @@ else:
 #     nlp = classla.Pipeline("sl", processors="tokenize,pos,lemma")
 # else:
 #     nlp = None
-checkpoint = "147870" # specific checkpoint, "all" or None
+checkpoint = "345030" # specific checkpoint, "all" or None
 kind = "test_answered"
 kind_in_prediction_file = True
 filter_no_answer = False
 filter_machine_translation = False
 
 evaluation = dict()
-evaluation["BoolQ"] = eval_bool("BoolQ", model)
-evaluation["COPA"] = eval_mc("COPA", model)
-evaluation["MCTest"] = eval_mc("MCTest", model)
-evaluation["MultiRC"] = eval_multirc("MultiRC", model)
-evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
+# evaluation["BoolQ"] = eval_bool("BoolQ", model)
+# evaluation["COPA"] = eval_mc("COPA", model)
+evaluation["MCTest"] = eval_mc("MCTest-deepl", model)
+# evaluation["MultiRC"] = eval_multirc("MultiRC", model)
+# evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
 
 for dataset, evals in evaluation.items():
     print(f"*** {dataset} *** -> {evals}")

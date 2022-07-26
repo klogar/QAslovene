@@ -7,8 +7,8 @@ from eval_utils import *
 kinds = ["train", "val", "test_answered"]
 options = ["A", "B", "C", "D"]
 
-def plot_mc(data, num_options, dataset):
-    df = pd.DataFrame(data, columns=options[:num_options], index=["učna", "validacijska", "testna"])
+def plot_mc(data, options, dataset):
+    df = pd.DataFrame(data, columns=options, index=["učna", "validacijska", "testna"])
     df.plot(kind='bar',alpha=0.75, rot=0)
     plt.ylabel("Odstotek vseh primerov")
     plt.title(f"Razredna distribucija v podatkovni množici {dataset}")
@@ -41,7 +41,7 @@ def mc_info(dataset):
             print(f"-------> {key} = {100*value/all:.2f}")
 
     num_options = len(candidates_split)
-    plot_mc(splits, num_options, dataset)
+    plot_mc(splits, options[:num_options], dataset)
 
 def copa_info():
     for kind in kinds:
@@ -88,9 +88,29 @@ def squad2_info():
 
         print()
 
+def boolq_info():
+    yes_no_options = ["da", "ne"]
+    splits = defaultdict(list)
+    for kind in kinds:
+        file = f"{dir}/BoolQ/{kind}.csv"
+        data = pd.read_csv(file)
+
+        gold_lines = list(data["output"])
+        counter = Counter(gold_lines)
+        yes = counter["da"]
+        no = counter["ne"]
+        all = yes + no
+        print(f"BoolQ - {kind}")
+        for key, value in sorted(counter.items()):
+            splits[key].append(100 * value / all)
+            print(f"-------> {key} = {100 * value / all:.2f}")
+
+    plot_mc(splits, yes_no_options, "BoolQ")
+
 dir = "encoded"
 # mc_info("COPA")
 # mc_info("MCTest")
 # copa_info()
-# multirc_info()
-squad2_info()
+multirc_info()
+# squad2_info()
+# boolq_info()
