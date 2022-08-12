@@ -504,11 +504,11 @@ filter_no_answer = False
 filter_machine_translation = False
 
 evaluation = dict()
-# evaluation["BoolQ"] = eval_bool("BoolQ", model)
+evaluation["BoolQ"] = eval_bool("BoolQ", model)
 evaluation["COPA"] = eval_mc("COPA", model)
-# evaluation["MCTest"] = eval_mc("MCTest", model)
-# evaluation["MultiRC"] = eval_multirc("MultiRC", model)
-# evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
+evaluation["MCTest"] = eval_mc("MCTest", model)
+evaluation["MultiRC"] = eval_multirc("MultiRC", model)
+evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
 
 for dataset, evals in evaluation.items():
     print(f"*** {dataset} *** -> {evals}")
