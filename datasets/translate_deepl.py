@@ -63,7 +63,7 @@ def read_dataset(filename):
     dataset = list(map(concat_text, dataset[560:]))
     return dataset, ids
 
-mctest = read_dataset("../../../Magistrska/Datasets/English/translationprep/MCTest.csv")
+# mctest = read_dataset("../../../Magistrska/Datasets/English/translationprep/MCTest.csv")
 # translate_deepl_mctest(*mctest)
 # squad = read_dataset("../../../Magistrska/Datasets/English/translationprep/Squad-train-qa.csv")
 # translate_deepl_squad(*squad, "train-qa")
@@ -96,3 +96,17 @@ def compare_translations_squad(deepl_file, my_file):
 # compare_translations_mctest("../../../Magistrska/Datasets/English/translationprep/MCTest-deepl.csv", "../../../Magistrska/Datasets/MT/translationprep/MCTest-sl.csv")
 # compare_translations_squad("../../../Magistrska/Datasets/English/translationprep/Squad-deepl-train-qa.csv", "../../../Magistrska/Datasets/MT/translationprep/Squad-train-qa-sl.csv")
 
+# Because the whole dataset wasn't translated at the same time, it wasn't sorted correctly (mixed train, dev, test examples)
+def sort_mctest_by_id():
+    file_in = "../../../Magistrska/Datasets/English/translationprep/MCTest-deepl.csv"
+    file_out = "../../../Magistrska/Datasets/English/translationprep/MCTest-deepl-sorted.csv"
+    with open(f"{file_in}", encoding='UTF8') as f:
+        csv_file = csv.reader(f)
+        dataset = [line for line in csv_file]
+
+    dataset.sort(key=lambda k: (k[0][3:5], int(k[0][:3]), int(k[0][5:]))) # sort it the same as previously (kind (train, test, dev), 150/160, id)
+    f_out = open(f"{file_out}", 'w', encoding='UTF8', newline='')
+    writer = csv.writer(f_out)
+    writer.writerows(dataset)
+
+sort_mctest_by_id()

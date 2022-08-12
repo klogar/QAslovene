@@ -81,6 +81,11 @@ def eval_bool(dataset, model):
                 # else:
                 #     print(prediction)
                 #     print(context[i])
+                # if em_current == 0:
+                    # print(f"Prediction: {prediction}")
+                    # print(f"Question:  {test_data['input'][i]}")
+                    # print(f"Truth: {gold[i]}")
+                    # print()
 
         if verbose:
             print(f"answer is start of context {answer_is_start_of_context/total}")
@@ -145,6 +150,9 @@ def eval_mc(dataset, model):
         completely_wrong = 0
         total_no_ans = 0
         scores_em = []
+        if dataset == "COPA":
+            effect_total = 0
+            cause_total = 0
         for ind, (prediction, input, gold) in enumerate(zip(predictions, input_lines, gold_lines)):
             if filter_machine_translation and type_lines[ind] == "MT":
                 continue
@@ -177,6 +185,19 @@ def eval_mc(dataset, model):
             em = compute_exact(gold, prediction)
             scores_em.append(em)
 
+            if dataset == "COPA" and not lemmatized:
+                question = input_split[0]
+                if question == "Kaj se je zgodilo kot rezultat akcije? ":
+                    effect_total += accuracy[-1]
+                elif question == "Kaj je bil vzrok akcije? " :
+                    cause_total += accuracy[-1]
+
+            # if verbose:
+            #     print(f"Prediction: {prediction}")
+            #     print(f"Input: {input}")
+            #     print(f"Truth: {gold}")
+            #     print(f"Correct: {prediction == gold}")
+            #     print()
 
             # context = input_split[2]
             # question = input_split[0]
@@ -194,7 +215,9 @@ def eval_mc(dataset, model):
         print(f"completely wrong {completely_wrong/len(accuracy)}")
         print(f"predicted no answer {total_no_ans/len(accuracy)}")
 
-
+        if dataset == "COPA":
+            print(f"Rezultat: {effect_total/len(accuracy)}")
+            print(f"Vzrok: {cause_total/len(accuracy)}")
 
         accuracy = round(sum(accuracy) / len(accuracy), 3)
         em_score = round(sum(scores_em) / len(scores_em), 3)
@@ -462,7 +485,7 @@ def get_best_epoch(evaluation):
     return average_evals.index(max(average_evals)), round(max(average_evals), 3)
 
 
-model = "munified-engall-slo"
+model = "unified-general-all-3"
 verbose = True
 lemmatized = False
 if lemmatized:
@@ -482,8 +505,8 @@ filter_machine_translation = False
 
 evaluation = dict()
 # evaluation["BoolQ"] = eval_bool("BoolQ", model)
-# evaluation["COPA"] = eval_mc("COPA", model)
-evaluation["MCTest"] = eval_mc("MCTest-deepl", model)
+evaluation["COPA"] = eval_mc("COPA", model)
+# evaluation["MCTest"] = eval_mc("MCTest", model)
 # evaluation["MultiRC"] = eval_multirc("MultiRC", model)
 # evaluation["SQUAD2"] = eval_squad2("SQUAD2-project", model)
 

@@ -17,10 +17,10 @@ kind = "test_answered"
 # datasets = ["COPA", "MCTest", "MultiRC", "SQUAD2-project"]
 # datasets = ["MCTest-eng"]
 # datasets = ["SQUAD2-project"]
-datasets = ["MultiRC-eng"]
+datasets = ["COPA"]
 datasets_mc = ["COPA", "MCTest", "MCTest-eng"]
 
-lang = "eng" # eng or slo
+lang = "slo" # eng or slo
 
 def get_predictions(dataset):
     predictions_dict = dict()
@@ -48,12 +48,13 @@ def get_answers(dataset):
     golds = [line["answers"] for line in reader]
     return golds
 
-def get_questions_context(dataset):
+def get_questions_context_answers(dataset):
     data = pd.read_csv(f"../datasets/encoded/{dataset}/{kind}.csv")
     input_lines = list(data["input"])
+    answers = list(data["output"])
     questions = [input.split("\\n")[0] for input in input_lines]
     context = [input.split("\\n")[1] for input in input_lines]
-    return questions, context
+    return questions, context, answers
 
 def get_answers_questions_options_context_mc(dataset):
     data = pd.read_csv(f"../datasets/encoded/{dataset}/{kind}.csv")
@@ -82,8 +83,9 @@ def get_qual_eval():
             options[dataset] = opts
             contexts[dataset] = cnts
         else:
-            ans = get_answers(dataset)
-            qs, cnts = get_questions_context(dataset)
+            qs, cnts, ans = get_questions_context_answers(dataset)
+            if dataset in ["MultiRC", "SQUAD2-project"]: # there are multiple correct answers, read from a specialized file
+                ans = get_answers(dataset)
             answers[dataset] = ans
             questions[dataset] = qs
             contexts[dataset] = cnts
@@ -100,7 +102,8 @@ def get_qual_eval():
                 for model, _ in models:
                     p = preds[model][ind]
                     # print(f"{model}: {p} ------- {p.lower() in options[dataset][ind].lower() or '< Ni odgovora >' in answer}")
-                    print(f"{model}: {p} ------- {p.lower() in contexts[dataset][ind].lower() or '< Ni odgovora >' in answer}")
+                    # print(f"{model}: {p} ------- {p.lower() in contexts[dataset][ind].lower() or '< Ni odgovora >' in answer}")
+                    print(f"{model}: {p} ------- {p == answer}")
             elif lang == "eng":
                 p = preds["unifiedqa"][ind]
                 # print(f"unifiedqa: {p} ------- {p.lower() in options[dataset][ind].lower() or '< Ni odgovora >' in answer}")

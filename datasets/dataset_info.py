@@ -111,6 +111,6 @@ dir = "encoded"
 # mc_info("COPA")
 # mc_info("MCTest")
 # copa_info()
-multirc_info()
-# squad2_info()
+# multirc_info()
+squad2_info()
 # boolq_info()

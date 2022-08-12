@@ -165,10 +165,11 @@ def merge_squad_deepl(dir_in):
         writerc = csv.writer(f_out)
         writerc.writerows(data)
 
-def get_label(id, answers):
+# Find matching answer by id
+def get_answer(id, answers):
     for answer in answers:
         if id == answer["idx"]:
-            return answer["label"]
+            return answer
     raise "Cannot find matching ids"
 
 def add_answers_multirc_test(dir):
@@ -196,6 +197,7 @@ def add_answers_multirc_test(dir):
 
             lines.append(line)
 
+    # Machine translated
     writer = jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl", mode="w")  # Slovene test_answered.jsonl
     with jsonlines.open(f"{dir}/MT/MultiRC/test.jsonl") as reader:  # Slovene test.jsonl
         for ind, l in enumerate(reader):
@@ -203,14 +205,53 @@ def add_answers_multirc_test(dir):
                 for ind3, ans in enumerate(question["answers"]):
                     # try:
                     answers = lines[ind]["passage"]["questions"][ind2]["answers"]
-                    ans["label"] = get_label(ans["idx"], answers)
+                    ans["label"] = get_answer(ans["idx"], answers)["label"]
                 # except:
                 #     # This happens in case some answers were not matched and miss label
                 #     print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["question"]))
                 #     print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["text"]))
             writer.write(l)
 
+    # Human translated
+    writer = jsonlines.open(f"{dir}/HT/MultiRC/test_answered.jsonl", mode="w")  # Slovene test_answered.jsonl
+    with jsonlines.open(f"{dir}/HT/MultiRC/test.jsonl") as reader:  # Slovene test.jsonl
+        for ind, l in enumerate(reader):
+            for ind2, question in enumerate(l["passage"]["questions"]):
+                for ind3, ans in enumerate(question["answers"]):
+                    # try:
+                    answers = lines[ind]["passage"]["questions"][ind2]["answers"]
+                    ans["label"] = get_answer(ans["idx"], answers)["label"]
+                # except:
+                #     # This happens in case some answers were not matched and miss label
+                #     print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["question"]))
+                #     print(remove_special_chars(lines[ind]["passage"]["questions"][ind2]["answers"][ind3]["text"]))
+            writer.write(l)
 
+def check_answers_multirc(dir):
+    with jsonlines.open(f"{dir}/HT/MultiRC/test_answered.jsonl") as reader_ht:
+        with jsonlines.open(f"{dir}/MT/MultiRC/test_answered.jsonl") as reader_mt:
+            with jsonlines.open(f"{dir}/English/MultiRC/test_answered.jsonl") as reader_eng:
+
+                for line_ht, line_mt, line_eng in zip(reader_ht, reader_mt, reader_eng):
+                    assert line_ht["idx"] == line_mt["idx"] == line_eng["idx"], "Human and machine translation passages do not match"
+                    questions_ht = line_ht["passage"]["questions"]
+                    questions_mt = line_mt["passage"]["questions"]
+                    questions_eng = line_eng["passage"]["questions"]
+                    for question_ht, question_mt, question_eng in zip(questions_ht, questions_mt, questions_eng):
+                        assert question_ht["idx"] == question_mt["idx"] == question_eng["idx"], "Human and machine translations questions do not match"
+                        answers_ht = question_ht["answers"]
+                        answers_mt = question_mt["answers"]
+                        answers_eng = question_eng["answers"]
+                        for answer_ht, answer_mt in zip(answers_ht, answers_mt):
+                            answer_eng = get_answer(answer_ht["idx"], answers_eng)
+                            assert answer_ht["idx"] == answer_mt["idx"] == answer_eng["idx"], "Human and machine translations answers do not match"
+                            assert answer_ht["label"] == answer_mt["label"] == answer_eng["label"], "Human and machine translations labels do not match"
+                            # if answer_ht["label"] != answer_eng["label"]:
+                            #     print(question_ht["idx"])
+                            #     print(answer_ht)
+                            #     print(answer_mt)
+                            #     print(answer_eng)
+                            #     print()
 
 def add_answers_boolq_test(dir):
     writer = jsonlines.open(f"{dir}/MT/BoolQ/test_answered.jsonl", mode="w")
@@ -233,15 +274,16 @@ datasets = ["BoolQ", "MultiRC", "COPA"]
 kinds = ["train", "val",  "test_answered"]
 dir = "../../../Magistrska/Datasets"
 
-merge(datasets, kinds, dir)
+# merge(datasets, kinds, dir)
 # merge_mctest_deepl("../../../Magistrska/Datasets/MT/translationprep")
 # merge_squad_deepl("../../../Magistrska/Datasets/MT/translationprep")
 
 # add_answers_boolq_test(dir) # ni več teh datotek
 # add_answers_multirc_test(dir)
+check_answers_multirc(dir)
 
 # create_ht_mt(["BoolQ", "MultiRC"], kinds, dir)
-create_deepl_mt("../../../Magistrska/Datasets/MT/translationprep")
+# create_deepl_mt("../../../Magistrska/Datasets/MT/translationprep")
 
 get_statistics(dir, datasets, kinds)
 get_statistics_table(dir, datasets, kinds)
